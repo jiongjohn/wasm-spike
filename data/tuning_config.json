@@ -1,0 +1,14 @@
+{
+  "_comment": "游戏调参配置 — 权威数值来源 GDD game-tuning-config.md T4/T5/T6。勿在代码中硬编码这些值。",
+  "base_atk": 6,
+  "base_def": 3,
+  "base_max_hp": 100,
+  "n_max": 10,
+  "hp_budget_ratio": 0.35,
+  "battle_round_duration": 0.3,
+  "floor_tuning_table": [
+    { "floor_number": 1, "player_atk_expected": 14, "player_def_expected": 8,  "player_hp_expected": 100 },
+    { "floor_number": 2, "player_atk_expected": 14, "player_def_expected": 13, "player_hp_expected": 90  },
+    { "floor_number": 3, "player_atk_expected": 20, "player_def_expected": 13, "player_hp_expected": 135 }
+  ]
+}
