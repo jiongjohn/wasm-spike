@@ -1,0 +1,41 @@
+; Pixel Tower (像素魔塔·无尽塔) — 主游戏工程
+; Engine: Godot 4.5.2（pinned，见 docs/engine-reference/godot/VERSION.md）
+; 渲染：Compatibility（gl_compatibility）—— ADR-0007 硬约束，禁 Forward+/Mobile
+; 用 Godot Launcher 时把本工程的编辑器版本绑定到 4.5.2。
+
+config_version=5
+
+[application]
+
+config/name="Pixel Tower 像素魔塔·无尽塔"
+config/features=PackedStringArray("4.5", "GL Compatibility")
+; run/main_scene 暂空 —— game.tscn 属 Scene 层产物，待 #6/#12 等实现后设置。
+; headless 测试（GDUnit4）不需要 main_scene。
+
+[autoload]
+
+; ADR-0002 / ADR-0003 规定的 Autoload 启动顺序（各系统实现后逐个启用，勿提前注册不存在的脚本）：
+;   [1] TuningConfig  [2] EntityDB  [3] FloorDB  [4] PlayerStats  [5] CombatSystem
+;   [6] KeyDoor  [7] DropReward  [8] FloorProgress  [9] CombatForecastService
+;   [10] GameState  [11] GameBootstrap（始终最后）
+; 当前无 Autoload 脚本就绪（TuningFormulas 是静态工具类，非 Autoload）。
+
+[display]
+
+window/stretch/mode="canvas_items"
+
+[dotnet]
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true

@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<!-- PROTOTYPE - NOT FOR PRODUCTION -->
+<!-- Question: Can deterministic combat + visible stat growth create "one more floor" compulsion? -->
+<!-- Date: 2026-06-23 -->
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>像素魔塔 · 原型</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
+
+    body {
+      background: #111827;
+      color: #e2e8f0;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px;
+      min-height: 100vh;
+    }
+
+    h1 { color: #fbbf24; font-size: 1.1em; margin-bottom: 4px; letter-spacing: 2px; }
+
+    #floor-banner {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 2px 16px;
+      font-size: 0.82em;
+      margin-bottom: 8px;
+      color: #94a3b8;
+    }
+    #floor-banner span { color: #fbbf24; font-weight: bold; }
+
+    /* ── LAYOUT ─────────────────────── */
+    #layout {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      max-width: 480px;
+    }
+
+    /* ── GRID ───────────────────────── */
+    #grid-wrap { position: relative; }
+
+    #grid {
+      display: grid;
+      gap: 2px;
+      padding: 4px;
+      background: #0f172a;
+      border: 2px solid #1e3a5f;
+      border-radius: 8px;
+    }
+
+    .cell {
+      width: 50px; height: 50px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      border-radius: 4px;
+      cursor: pointer;
+      position: relative;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s;
+    }
+    .cell-wall  { background: #0d1117; cursor: default; color: #1e293b; font-size: 28px; }
+    .cell-floor { background: #1e293b; }
+    .cell-floor:active { background: #2d3f55; }
+    .cell-player { background: #1e3a5f; }
+    .cell-stairs { background: #1a2e1a; }
+    .cell-monster { cursor: pointer; }
+    .cell-monster:active { filter: brightness(1.3); }
+
+    .hp-micro {
+      position: absolute; bottom: 2px; left: 3px; right: 3px;
+      height: 3px; background: #374151; border-radius: 2px; overflow: hidden;
+    }
+    .hp-micro-fill { height: 100%; border-radius: 2px; transition: width .3s; }
+
+    /* adjacent highlight */
+    .cell-adj { box-shadow: 0 0 0 2px #60a5fa55; }
+
+    /* ── FLOAT TEXT ─────────────────── */
+    .floater {
+      position: absolute;
+      font-weight: bold;
+      font-size: 16px;
+      pointer-events: none;
+      animation: rise 0.9s ease-out forwards;
+      z-index: 99;
+      white-space: nowrap;
+    }
+    .f-dmg   { color: #f87171; }
+    .f-heal  { color: #4ade80; }
+    .f-gain  { color: #fbbf24; }
+    .f-big   { font-size: 22px; }
+    @keyframes rise {
+      0%   { opacity: 1; transform: translate(-50%, 0px); }
+      100% { opacity: 0; transform: translate(-50%, -48px); }
+    }
+
+    /* ── STATS BAR ──────────────────── */
+    #stats-bar {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: center;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px 10px;
+      width: 100%;
+    }
+
+    .stat-chip {
+      display: flex; align-items: center; gap: 4px;
+      background: #0f172a;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.88em;
+      min-width: 70px;
+    }
+    .stat-chip .sv {
+      font-weight: bold; font-size: 1.1em;
+      display: inline-block;
+    }
+    .sv.bump { animation: statPop 0.45s ease-out; }
+    @keyframes statPop {
+      0%   { transform: scale(1);    color: inherit; }
+      40%  { transform: scale(1.55); color: #fbbf24; }
+      100% { transform: scale(1);    color: inherit; }
+    }
+
+    #hp-bar-wrap {
+      width: 100%;
+      height: 5px;
+      background: #374151;
+      border-radius: 3px;
+      margin-top: 4px;
+      order: 10;
+    }
+    #hp-bar { height: 100%; border-radius: 3px; transition: width .4s, background .4s; }
+
+    /* ── PREVIEW + LOG ──────────────── */
+    #bottom {
+      width: 100%;
+      display: flex;
+      gap: 6px;
+    }
+
+    #preview {
+      flex: 1;
+      background: #0f172a;
+      border: 1px solid #1e3a5f;
+      border-left: 3px solid #334155;
+      border-radius: 6px;
+      padding: 7px 9px;
+      font-size: 0.78em;
+      color: #94a3b8;
+      min-height: 60px;
+    }
+    #preview.ok   { border-left-color: #4ade80; }
+    #preview.warn { border-left-color: #fbbf24; }
+    #preview.bad  { border-left-color: #f87171; }
+
+    #log {
+      width: 160px;
+      background: #0a0f1a;
+      border: 1px solid #1e293b;
+      border-radius: 6px;
+      padding: 5px;
+      font-size: 0.72em;
+      max-height: 80px;
+      overflow-y: auto;
+    }
+    .le { padding: 1px 0; border-bottom: 1px solid #0f172a; line-height: 1.35; }
+    .le-combat { color: #fca5a5; }
+    .le-item   { color: #86efac; }
+    .le-key    { color: #fde68a; }
+    .le-floor  { color: #93c5fd; }
+    .le-death  { color: #ef4444; font-weight: bold; }
+
+    /* ── OVERLAY ────────────────────── */
+    #overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.88);
+      flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 200;
+      text-align: center;
+      padding: 20px;
+    }
+    #overlay.show { display: flex; }
+    #overlay h2   { font-size: 2em; margin-bottom: 8px; }
+    .ov-win  h2   { color: #fbbf24; text-shadow: 0 0 20px #fbbf24; }
+    .ov-die  h2   { color: #f87171; }
+    #overlay p    { color: #94a3b8; margin-bottom: 8px; white-space: pre-line; font-size:.9em; }
+    #ov-stats     { color: #e2e8f0; font-size: .85em; margin-bottom: 16px; }
+    #ov-btn {
+      background: #1e3a5f; color: #fbbf24;
+      border: 2px solid #fbbf24;
+      padding: 12px 32px; font-size: 1.1em;
+      border-radius: 8px; cursor: pointer;
+      font-family: inherit;
+    }
+    #ov-btn:hover { background: #2a4a70; }
+  </style>
+</head>
+<body>
+
+<h1>⚔️ 像素魔塔 · 原型</h1>
+<div id="floor-banner">第 <span id="fn">1</span> 层 / 共 3 层</div>
+
+<div id="layout">
+  <div id="grid-wrap">
+    <div id="grid"></div>
+  </div>
+
+  <div id="stats-bar">
+    <div class="stat-chip">❤️ <span class="sv" id="s-hp">100</span><span style="color:#475569;font-size:.8em">/<span id="s-mhp">100</span></span></div>
+    <div class="stat-chip">⚔️ <span class="sv" id="s-atk">10</span></div>
+    <div class="stat-chip">🛡️ <span class="sv" id="s-def">5</span></div>
+    <div class="stat-chip">🔑 <span class="sv" id="s-yk">0</span></div>
+    <div class="stat-chip">🗝️ <span class="sv" id="s-bk">0</span></div>
+    <div id="hp-bar-wrap"><div id="hp-bar"></div></div>
+  </div>
+
+  <div id="bottom">
+    <div id="preview">点击怪物查看战斗预演 👆</div>
+    <div id="log"></div>
+  </div>
+</div>
+
+<div id="overlay">
+  <h2 id="ov-title"></h2>
+  <p id="ov-msg"></p>
+  <div id="ov-stats"></div>
+  <button id="ov-btn" onclick="restart()">🔄 再来一次</button>
+</div>
+
+<script>
+// ══════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════
+
+const MON = {
+  '1': { name:'史莱姆',  e:'🟢', hp:20,  atk:8,  def:2,  bg:'#16532d' },
+  '2': { name:'哥布林',  e:'👺', hp:50,  atk:18, def:5,  bg:'#78350f' },
+  '3': { name:'骷髅兵',  e:'💀', hp:90,  atk:28, def:10, bg:'#374151' },
+  '4': { name:'👹BOSS兽王',e:'👹',hp:180, atk:42, def:15, bg:'#7f1d1d' },
+};
+
+const ITEM = {
+  'h': { name:'小回血药', e:'🧪', eff:'hp',  v:40  },
+  'H': { name:'大回血药', e:'💊', eff:'hp',  v:80  },
+  's': { name:'铁剑',    e:'⚔️', eff:'atk', v:8   },
+  'S': { name:'精钢剑',  e:'🗡️', eff:'atk', v:14  },
+  'd': { name:'木盾',    e:'🛡️', eff:'def', v:5   },
+  'D': { name:'铁盾',    e:'🔰', eff:'def', v:10  },
+  'm': { name:'生命宝石', e:'💎', eff:'mhp', v:50  },
+};
+
+// Floors: 7 cols × 8 rows
+// . floor  # wall  P player  > stairs
+// y yellow-key  b blue-key
+// Y yellow-door  B blue-door
+// 1-4 monsters  h H s S d D m items
+// Divider rule: a door is the ONLY gap in a full wall row, so it gates the path
+// to the stairs. The boss on floor 3 plugs the only gap to the stairs pocket.
+const MAPS = [
+  [ // ── Floor 1 · teach the loop · 黄门必经 ──
+    '#######',
+    '#P..1.#',
+    '#.s.h.#',
+    '#..y..#',
+    '###Y###',  // 黄门是上半区唯一入口
+    '#...1.#',
+    '#.d.S.#',
+    '#..>..#',
+    '#######',
+  ],
+  [ // ── Floor 2 · decision floor · 黄/蓝双门二选一 ──
+    '#######',
+    '#<.2..#',  // < 下楼梯,回第 1 层
+    '#.#.#h#',
+    '#y.2.b#',
+    '#Y###B#',  // 左黄门 或 右蓝门,两条路通上半区
+    '#.S.2.#',
+    '#h.D.m#',
+    '#..>..#',  // > 上楼梯,去第 3 层
+    '#######',
+  ],
+  [ // ── Floor 3 · boss floor · BOSS 堵楼梯唯一入口 ──
+    '#######',
+    '#<.3..#',  // < 下楼梯,回第 2 层
+    '#.#.#.#',
+    '#3.H.3#',
+    '#.S.D.#',
+    '#H.m.H#',
+    '###4###',  // BOSS 是通往楼梯小室的唯一缺口,绕不过去
+    '#..>..#',  // > 顶层楼梯 = 通关
+    '#######',
+  ],
+];
+
+// ══════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════
+
+let G = {};   // game state
+let WINS = 0;
+
+function freshPlayer() {
+  return { hp:100, maxHp:100, atk:10, def:5, yk:0, bk:0 };
+}
+
+function init() {
+  G = { floor:0, p: freshPlayer(), cells:[], pos:{r:0,c:0}, busy:false,
+        floorStates:[null,null,null] };  // persisted per-floor cell grids
+  loadFloor(0, 'start');
+}
+
+function restart() {
+  document.getElementById('overlay').className='';
+  document.getElementById('log').innerHTML='';
+  setPreview('点击怪物查看战斗预演 👆','');
+  init();
+}
+
+// ══════════════════════════════════════
+//  FLOOR LOADING
+// ══════════════════════════════════════
+
+function loadFloor(fi, arrival) {
+  G.floor = fi;
+  // First visit → parse from MAPS and cache. Revisit → reuse the SAME grid
+  // object so picked items / killed monsters stay gone.
+  if (!G.floorStates[fi]) G.floorStates[fi] = parseMap(MAPS[fi]);
+  const fs = G.floorStates[fi];
+  G.cells = fs.cells;
+
+  // Place the player at the correct entry point for how they arrived:
+  //  start     → the floor's P marker (floor 1 only)
+  //  fromBelow → arrived by climbing UP, land on this floor's DOWN-stair
+  //  fromAbove → arrived by going DOWN, land on this floor's UP-stair
+  let pos;
+  if (arrival==='fromBelow')      pos = fs.starts.down;
+  else if (arrival==='fromAbove') pos = fs.starts.up;
+  else                            pos = fs.starts.start;
+  G.pos = pos || fs.starts.up || fs.starts.down || {r:1,c:1};
+
+  render();
+  log(`📍 进入第 ${fi+1} 层`, 'floor');
+  document.getElementById('fn').textContent = fi+1;
+}
+
+function parseMap(map) {
+  const starts = {};
+  const cells = map.map((row,r) =>
+    row.split('').map((ch,c) => {
+      if (ch==='P') { starts.start = {r,c}; return {t:'floor'}; }
+      const cell = parseCell(ch);
+      if (cell.t==='stairs') {
+        if (cell.dir==='up') starts.up = {r,c};
+        else                 starts.down = {r,c};
+      }
+      return cell;
+    })
+  );
+  return { cells, starts };
+}
+
+function parseCell(ch) {
+  if (ch==='#') return {t:'wall'};
+  if (ch==='P'||ch==='.') return {t:'floor'};
+  if (ch==='>') return {t:'stairs', dir:'up'};
+  if (ch==='<') return {t:'stairs', dir:'down'};
+  if (ch in MON) { const m={...MON[ch]}; return {t:'mon', ...m, chp:m.hp}; }
+  if (ch==='y') return {t:'key', kt:'y', e:'🔑'};
+  if (ch==='b') return {t:'key', kt:'b', e:'🗝️'};
+  if (ch==='Y') return {t:'door', kt:'y', e:'🚪', clr:'#92400e'};
+  if (ch==='B') return {t:'door', kt:'b', e:'🚪', clr:'#1e3a8a'};
+  if (ch in ITEM) return {t:'item', ...ITEM[ch], id:ch};
+  return {t:'floor'};
+}
+
+// ══════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════
+
+function render() {
+  const grid = document.getElementById('grid');
+  const rows = G.cells.length, cols = G.cells[0].length;
+  grid.style.gridTemplateColumns = `repeat(${cols}, 50px)`;
+  grid.innerHTML = '';
+
+  for (let r=0;r<rows;r++) {
+    for (let c=0;c<cols;c++) {
+      const cell = G.cells[r][c];
+      const isP  = G.pos.r===r && G.pos.c===c;
+      const isAdj= isAdjacent(r,c);
+      const div  = document.createElement('div');
+      div.className = 'cell';
+      div.dataset.r = r; div.dataset.c = c;
+
+      if (cell.t==='wall') {
+        div.classList.add('cell-wall');
+        div.textContent = '▓';
+      } else if (isP) {
+        div.classList.add('cell-player');
+        div.innerHTML = '<span style="font-size:24px;filter:drop-shadow(0 0 4px #60a5fa)">🧙</span>';
+      } else if (cell.t==='floor') {
+        div.classList.add('cell-floor');
+        if (isAdj) div.classList.add('cell-adj');
+      } else if (cell.t==='stairs') {
+        div.classList.add('cell-stairs');
+        div.innerHTML = cell.dir==='down' ? '🔽' : '🔼';
+        if (isAdj) div.classList.add('cell-adj');
+      } else if (cell.t==='mon') {
+        div.classList.add('cell-monster');
+        div.style.background = cell.bg+'55';
+        div.style.border = `1px solid ${cell.bg}`;
+        div.innerHTML = `<span style="font-size:22px">${cell.e}</span>`;
+        if (isAdj) div.classList.add('cell-adj');
+        // mini hp bar
+        const pct = (cell.chp / cell.hp) * 100;
+        div.insertAdjacentHTML('beforeend',
+          `<div class="hp-micro"><div class="hp-micro-fill" style="width:${pct}%;background:${pct>50?'#4ade80':'#f87171'}"></div></div>`
+        );
+        div.addEventListener('mouseenter', ()=> prevMonster(cell));
+      } else if (cell.t==='key') {
+        div.classList.add('cell-floor');
+        div.innerHTML = cell.e;
+        if (isAdj) div.classList.add('cell-adj');
+      } else if (cell.t==='door') {
+        div.classList.add('cell-floor');
+        div.style.background = cell.clr+'33';
+        div.style.border = `1px solid ${cell.clr}88`;
+        div.innerHTML = cell.e;
+        if (isAdj) div.classList.add('cell-adj');
+      } else if (cell.t==='item') {
+        div.classList.add('cell-floor');
+        div.innerHTML = cell.e;
+        if (isAdj) div.classList.add('cell-adj');
+      }
+
+      if (cell.t!=='wall') {
+        div.addEventListener('click', ()=> onCellClick(r,c));
+      }
+      grid.appendChild(div);
+    }
+  }
+  updateStats();
+}
+
+function isAdjacent(r,c) {
+  const dr=Math.abs(r-G.pos.r), dc=Math.abs(c-G.pos.c);
+  return (dr===1&&dc===0)||(dr===0&&dc===1);
+}
+
+// ══════════════════════════════════════
+//  STATS UI
+// ══════════════════════════════════════
+
+function updateStats() {
+  const p = G.p;
+  bump('s-hp',  p.hp);
+  bump('s-mhp', p.maxHp, true);
+  bump('s-atk', p.atk);
+  bump('s-def', p.def);
+  bump('s-yk',  p.yk);
+  bump('s-bk',  p.bk);
+
+  const pct = Math.max(0, p.hp/p.maxHp*100);
+  const bar = document.getElementById('hp-bar');
+  bar.style.width  = pct+'%';
+  bar.style.background = pct>50?'#4ade80': pct>25?'#fbbf24':'#f87171';
+}
+
+const _prev = {};
+function bump(id, val, silent=false) {
+  const el = document.getElementById(id);
+  const old = _prev[id];
+  el.textContent = val;
+  if (!silent && old !== undefined && old !== val) {
+    el.classList.remove('bump');
+    void el.offsetWidth;
+    el.classList.add('bump');
+  }
+  _prev[id] = val;
+}
+
+// ══════════════════════════════════════
+//  COMBAT MATH
+// ══════════════════════════════════════
+
+function calcFight(mon) {
+  const p = G.p;
+  const pdmg = Math.max(1, p.atk - mon.def);
+  const mdmg = Math.max(1, mon.atk - p.def);
+  let mhp = mon.chp, lost = 0;
+  while (mhp > 0) { mhp -= pdmg; if (mhp>0) lost += mdmg; }
+  const rnds = Math.ceil(mon.chp / pdmg);
+  return { pdmg, mdmg, lost, rnds };
+}
+
+function prevMonster(mon) {
+  const c = calcFight(mon);
+  const dies = G.p.hp - c.lost <= 0;
+  const cls  = dies ? 'bad' : c.lost>G.p.hp*0.6 ? 'warn' : 'ok';
+  setPreview(
+    `<b>${mon.name}</b><br>`+
+    `你每击: <span style="color:#4ade80">+${c.pdmg}</span>　`+
+    `对方每击: <span style="color:#f87171">−${c.mdmg}</span><br>`+
+    `共 ${c.rnds} 回合 · 损失 <span style="color:${dies?'#f87171':'#fbbf24'}">${c.lost} HP</span>`+
+    (dies ? '<br><b style="color:#f87171">⚠️ 你会死!</b>' : ''),
+    cls
+  );
+}
+
+function setPreview(html, cls='') {
+  const el = document.getElementById('preview');
+  el.innerHTML = html;
+  el.className = cls;
+}
+
+// ══════════════════════════════════════
+//  INPUT
+// ══════════════════════════════════════
+
+function onCellClick(r, c) {
+  if (G.busy) return;
+
+  const cell = G.cells[r][c];
+  if (cell.t==='wall') return;
+
+  if (!isAdjacent(r,c)) {
+    // tap a far monster → show its combat preview so you can plan
+    if (cell.t==='mon') prevMonster(cell);
+    return;
+  }
+
+  if (cell.t==='floor')   { move(r,c); }
+  else if (cell.t==='stairs') { cell.dir==='down' ? goDown() : goUp(); }
+  else if (cell.t==='mon')    { fight(r,c); }
+  else if (cell.t==='key')    { pickKey(r,c); }
+  else if (cell.t==='door')   { openDoor(r,c); }
+  else if (cell.t==='item')   { pickItem(r,c); }
+}
+
+function move(r,c) { G.pos={r,c}; render(); }
+
+function pickKey(r,c) {
+  const k = G.cells[r][c];
+  if (k.kt==='y') { G.p.yk++; log('🔑 获得黄色钥匙','key'); float(r,c,'+黄钥匙','f-gain'); }
+  else            { G.p.bk++; log('🗝️ 获得蓝色钥匙','key'); float(r,c,'+蓝钥匙','f-gain'); }
+  G.cells[r][c] = {t:'floor'};
+  move(r,c);
+}
+
+function openDoor(r,c) {
+  const d = G.cells[r][c];
+  const have = d.kt==='y' ? G.p.yk : G.p.bk;
+  if (have<=0) {
+    setPreview(`🔒 需要${d.kt==='y'?'黄色':'蓝色'}钥匙！`,'bad');
+    return;
+  }
+  if (d.kt==='y') G.p.yk--; else G.p.bk--;
+  G.cells[r][c] = {t:'floor'};
+  log('🚪 门开了！','key');
+  float(r,c,'门开了!','f-gain');
+  render();
+}
+
+function pickItem(r,c) {
+  const it = G.cells[r][c];
+  const p  = G.p;
+  if (it.eff==='hp') {
+    p.hp = Math.min(p.maxHp, p.hp + it.v);
+    log(`${it.e} ${it.name}: 回复 ${it.v} HP`,'item');
+    float(r,c,`+${it.v} HP`,'f-heal');
+  } else if (it.eff==='atk') {
+    p.atk += it.v;
+    log(`${it.e} ${it.name}: ATK +${it.v}`,'item');
+    float(r,c,`+${it.v} ATK`,'f-gain');
+  } else if (it.eff==='def') {
+    p.def += it.v;
+    log(`${it.e} ${it.name}: DEF +${it.v}`,'item');
+    float(r,c,`+${it.v} DEF`,'f-gain');
+  } else if (it.eff==='mhp') {
+    p.maxHp += it.v;
+    p.hp = Math.min(p.hp + it.v, p.maxHp);
+    log(`${it.e} ${it.name}: 最大HP +${it.v}`,'item');
+    float(r,c,`+${it.v} MaxHP`,'f-gain f-big');
+  }
+  G.cells[r][c] = {t:'floor'};
+  move(r,c);
+}
+
+const sleep = (ms)=> new Promise(res=> setTimeout(res, ms));
+
+async function fight(r,c) {
+  const mon  = G.cells[r][c];
+  const p    = G.p;
+  const pdmg = Math.max(1, p.atk  - mon.def);  // your hit on the monster
+  const mdmg = Math.max(1, mon.atk - p.def);   // monster's hit back
+
+  G.busy = true;
+  log(`⚔️ 与 ${mon.name} 交战 (每击 ${pdmg} / 受击 ${mdmg})`,'combat');
+
+  let round = 0;
+  while (true) {
+    round++;
+    // — your strike —
+    mon.chp -= pdmg;
+    flashCell(r,c,'#f87171');
+    float(r,c,`-${pdmg}`,'f-dmg');
+    updateMonsterHp(r,c,mon);
+    await sleep(300);
+
+    if (mon.chp <= 0) break;   // monster down — it does NOT hit this round
+
+    // — monster strikes back —
+    p.hp -= mdmg;
+    flashCell(G.pos.r, G.pos.c, '#fbbf24');
+    float(G.pos.r, G.pos.c, `-${mdmg}`,'f-dmg');
+    updateStats();
+    await sleep(300);
+
+    if (p.hp <= 0) {
+      p.hp = 0; updateStats();
+      log(`💀 被 ${mon.name} 击败 (撑了 ${round} 回合)`,'death');
+      await sleep(250);
+      showOv('die','💀 倒下了',`被 ${mon.name} 击败\n到达: 第 ${G.floor+1} 层`);
+      return;   // stays busy until restart()
+    }
+  }
+
+  // victory
+  log(`✅ 击败 ${mon.name} (${round} 回合)`,'combat');
+  float(r,c,'胜!','f-gain');
+  setPreview(`✅ 击败 <b>${mon.name}</b>　剩余 <span style="color:#60a5fa">${p.hp} HP</span>`,'ok');
+  G.cells[r][c] = {t:'floor'};
+  await sleep(200);
+  G.pos = {r,c};
+  render();
+  G.busy = false;
+}
+
+function flashCell(r,c,color) {
+  const el = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+  if (!el) return;
+  el.style.boxShadow = `0 0 0 3px ${color}, 0 0 14px ${color}`;
+  setTimeout(()=>{ el.style.boxShadow=''; }, 220);
+}
+
+function updateMonsterHp(r,c,mon) {
+  const fill = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"] .hp-micro-fill`);
+  if (!fill) return;
+  const pct = Math.max(0, mon.chp / mon.hp * 100);
+  fill.style.width = pct+'%';
+  fill.style.background = pct>50 ? '#4ade80' : '#f87171';
+}
+
+function goUp() {
+  if (G.floor < 2) {
+    const nf = G.floor+1;
+    log(`🏆 上楼 → 第 ${nf+1} 层`,'floor');
+    floatCenter(`⬆️ 第 ${nf+1} 层`,'f-gain f-big');
+    setTimeout(()=> loadFloor(nf, 'fromBelow'), 380);
+  } else {
+    WINS++;
+    const p = G.p;
+    log(`🎉 通关! (第${WINS}次)`,'floor');
+    floatCenter('🎉 通关！','f-gain f-big');
+    setTimeout(()=>
+      showOv('win','🎉 通关！',
+        `ATK ${p.atk}  DEF ${p.def}  HP ${p.hp}/${p.maxHp}\n这是你第 ${WINS} 次通关`),
+      500);
+  }
+}
+
+function goDown() {
+  if (G.floor > 0) {
+    const nf = G.floor-1;
+    log(`⬇️ 下楼 → 第 ${nf+1} 层 (可回去补打/补捡)`,'floor');
+    floatCenter(`⬇️ 第 ${nf+1} 层`,'f-gain');
+    setTimeout(()=> loadFloor(nf, 'fromAbove'), 380);
+  }
+}
+
+// ══════════════════════════════════════
+//  FLOAT TEXT
+// ══════════════════════════════════════
+
+function float(r,c,txt,cls) {
+  const gridWrap = document.getElementById('grid-wrap');
+  const cellEl   = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+  if (!cellEl) return;
+
+  const wr  = gridWrap.getBoundingClientRect();
+  const cr  = cellEl.getBoundingClientRect();
+
+  const el  = document.createElement('div');
+  el.className   = `floater ${cls}`;
+  el.textContent = txt;
+  el.style.left  = (cr.left - wr.left + cr.width/2) + 'px';
+  el.style.top   = (cr.top  - wr.top) + 'px';
+  gridWrap.appendChild(el);
+  setTimeout(()=>el.remove(), 1000);
+}
+
+function floatCenter(txt,cls) {
+  const gridWrap = document.getElementById('grid-wrap');
+  const wr = gridWrap.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className   = `floater ${cls}`;
+  el.textContent = txt;
+  el.style.left  = (wr.width/2) + 'px';
+  el.style.top   = (wr.height/2) + 'px';
+  gridWrap.appendChild(el);
+  setTimeout(()=>el.remove(), 1100);
+}
+
+// ══════════════════════════════════════
+//  LOG
+// ══════════════════════════════════════
+
+function log(msg,cls='') {
+  const el = document.getElementById('log');
+  const d  = document.createElement('div');
+  d.className   = `le le-${cls}`;
+  d.textContent = msg;
+  el.insertBefore(d, el.firstChild);
+  while (el.children.length > 18) el.removeChild(el.lastChild);
+}
+
+// ══════════════════════════════════════
+//  OVERLAY
+// ══════════════════════════════════════
+
+function showOv(kind, title, msg) {
+  const ov = document.getElementById('overlay');
+  ov.className = `show ov-${kind}`;
+  document.getElementById('ov-title').textContent = title;
+  document.getElementById('ov-msg').textContent   = msg;
+}
+
+// ══════════════════════════════════════
+//  GO
+// ══════════════════════════════════════
+init();
+</script>
+</body>
+</html>

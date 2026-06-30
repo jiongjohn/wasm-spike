@@ -24,33 +24,493 @@
 #
 # STATUS VALUES: active | deprecated | superseded-by: TR-[system]-NNN
 
-version: 1
-last_updated: ""
+version: 2
+last_updated: "2026-06-29"   # /architecture-review：翻正 stats-003/combat-001 陈旧"冲突"注释为 ✅（2026-06-26 已闭合，注释未同步）
 
-requirements: []
+requirements:
 
-# --- EXAMPLE ENTRIES (remove when first real entries are added) ---
-#
-# - id: TR-combat-001
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Player takes damage from enemies based on attack power minus defence"
-#   created: 2026-03-10
-#   revised: ""
-#   status: active
-#
-# - id: TR-combat-002
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Combo window timing is 0.4 seconds between hits"
-#   created: 2026-03-10
-#   revised: "2026-04-01"
-#   status: active
-#
-# - id: TR-combat-003
-#   system: combat
-#   gdd: design/gdd/combat-system.md
-#   requirement: "Old damage formula using raw stats"
-#   created: 2026-03-10
-#   revised: ""
-#   status: superseded-by: TR-combat-001
+  # ── #1 游戏实体数据库 (EntityDB) ──────────────────────────────────────────
+
+  - id: TR-entity-001
+    system: entity
+    gdd: design/gdd/entity-database.md
+    requirement: "启动 D1/D3 校验（需 TuningConfig 就绪后执行）"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: ADR-0002
+
+  - id: TR-entity-002
+    system: entity
+    gdd: design/gdd/entity-database.md
+    requirement: "只读访问模式（getter 返回 duplicate() 副本，下游写入不污染数据库）"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: ADR-0001
+
+  - id: TR-entity-003
+    system: entity
+    gdd: design/gdd/entity-database.md
+    requirement: "entity_type 判别字段（MONSTER/ITEM/KEY），所有条目必须携带"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "ADR-0001, ADR-0005"
+
+  - id: TR-entity-004
+    system: entity
+    gdd: design/gdd/entity-database.md
+    requirement: "道具叠加规则：HIGHEST_WINS（ATK/DEF 装备）vs ADDITIVE（MaxHP）"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "ADR-0001, ADR-0005"
+
+  - id: TR-entity-005
+    system: entity
+    gdd: design/gdd/entity-database.md
+    requirement: "WASM JSON 数据文件路径在 res:// 而非 user://（PCK 随包）"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: ADR-0005
+
+  - id: TR-entity-006
+    system: entity
+    gdd: design/gdd/entity-database.md
+    requirement: "启动校验失败：显示 inline 错误屏（禁止 OS.quit()，WASM 兼容）"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: ADR-0002
+
+  # ── #2 楼层关卡数据系统 (FloorDB) ────────────────────────────────────────
+
+  - id: TR-floor-001
+    system: floor
+    gdd: design/gdd/floor-layout-data.md
+    requirement: "16×16 网格数据结构（FloorEntry.grid: Array[Array[CellEntry]]），启动两遍校验"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "ADR-0001, ADR-0005"
+
+  - id: TR-floor-002
+    system: floor
+    gdd: design/gdd/floor-layout-data.md
+    requirement: "六种 cell_type（EMPTY/WALL/ENTITY/DOOR/STAIR_UP/STAIR_DOWN/PLAYER_START）带条件附加字段"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "ADR-0001, ADR-0005"
+
+  - id: TR-floor-003
+    system: floor
+    gdd: design/gdd/floor-layout-data.md
+    requirement: "get_cell()/get_floor() 返回 duplicate() 只读副本，写入副本不污染数据库（AC-FL-13）"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: ADR-0001
+
+  - id: TR-floor-004
+    system: floor
+    gdd: design/gdd/floor-layout-data.md
+    requirement: "F-SC1d BFS 拓扑校验：防具（盾甲）在第一个哥布林之前必须可达"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 部分覆盖 — 校验流程在 ADR-0002，算法未形式化"
+
+  - id: TR-floor-005
+    system: floor
+    gdd: design/gdd/floor-layout-data.md
+    requirement: "FloorDB Autoload 启动顺序在 EntityDB 之后（F-REF 校验依赖 EntityDB）"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: ADR-0002
+
+  # ── #3 游戏调参配置 (TuningConfig) ───────────────────────────────────────
+
+  - id: TR-tuning-001
+    system: tuning
+    gdd: design/gdd/game-tuning-config.md
+    requirement: "纯配置层，get_tuning_config() 返回只读副本；TuningConfig 本身不含计算逻辑"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "ADR-0001, ADR-0003"
+
+  - id: TR-tuning-002
+    system: tuning
+    gdd: design/gdd/game-tuning-config.md
+    requirement: "TuningFormulas 为独立静态函数类（damage_player/damage_monster/n_rounds），可 headless 测试，不依赖场景树"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 部分覆盖 — ADR-0003 模块表隐含，无明确 ADR 决策"
+
+  - id: TR-tuning-003
+    system: tuning
+    gdd: design/gdd/game-tuning-config.md
+    requirement: "楼层调参表按 floor_number/floor_id 查询，get_floor_tuning(n) 返回 null if not found"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "ADR-0003, ADR-0005"
+
+  # ── #4 玩家属性与成长系统 (PlayerStats) ──────────────────────────────────
+
+  - id: TR-stats-001
+    system: stats
+    gdd: design/gdd/player-stats-growth.md
+    requirement: "四条运行时属性：current_HP, MaxHP, ATK, DEF"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: ADR-0003
+
+  - id: TR-stats-002
+    system: stats
+    gdd: design/gdd/player-stats-growth.md
+    requirement: "stat_changed 信号（stat_name: String, old_value: int, new_value: int），含 old==new 时也必须 emit"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 部分覆盖 — ADR-0003 列出信号，old==new 边界未覆盖"
+
+  - id: TR-stats-003
+    system: stats
+    gdd: design/gdd/player-stats-growth.md
+    requirement: "pickup_item(item_id: String) 公开 API（由 EntityDB 查找 ItemEntry 后应用效果）"
+    created: 2026-06-26
+    revised: "2026-06-29"
+    status: active
+    adr_coverage: "✅ ADR-0003（Key Interfaces 第225行已为 pickup_item(item_id: String)；2026-06-26 /architecture-review 冲突已闭合，本轮翻正陈旧注释）"
+
+  - id: TR-stats-004
+    system: stats
+    gdd: design/gdd/player-stats-growth.md
+    requirement: "apply_damage(amount: int) 公开 API，amount >= 0（调用方契约）；HP 归零触发 player_died"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 部分覆盖 — ADR-0003 Key Interfaces 未列出此方法"
+
+  - id: TR-stats-005
+    system: stats
+    gdd: design/gdd/player-stats-growth.md
+    requirement: "装备叠加处理：ATK/DEF 装备 HIGHEST_WINS（只在比当前有效值更高时生效）；MaxHP 装备 ADDITIVE（累加）"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 部分覆盖 — 数据字段由 ADR-0001/0005 覆盖，PlayerStats 内部处理逻辑无 ADR"
+
+  - id: TR-stats-006
+    system: stats
+    gdd: design/gdd/player-stats-growth.md
+    requirement: "player_died() 信号（HP 归零时 emit，在 apply_damage 内部同步发射）"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 部分覆盖 — ADR-0003 Key Interfaces 未显式列出此信号"
+
+  - id: TR-stats-007
+    system: stats
+    gdd: design/gdd/player-stats-growth.md
+    requirement: "ATK/DEF 为只读计算属性 getter，无外部写入路径（防止直接赋值绕过叠加规则）"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "ADR-0001（边界声明）, ADR-0003（计算属性模式）"
+
+  # ── #5 确定性回合战斗系统 (CombatSystem) ─────────────────────────────────
+
+  - id: TR-combat-001
+    system: combat
+    gdd: design/gdd/combat-system.md
+    requirement: "resolve_combat(monster_id: String) 同步返回 CombatResult，无 await"
+    created: 2026-06-26
+    revised: "2026-06-29"
+    status: active
+    adr_coverage: "✅ ADR-0003（Key Interfaces 第199行已为 resolve_combat(monster_id: String)）+ ADR-0006（重入守卫）；2026-06-26 冲突已闭合，本轮翻正陈旧注释"
+
+  - id: TR-combat-002
+    system: combat
+    gdd: design/gdd/combat-system.md
+    requirement: "forecast_combat(monster_hp, monster_atk, monster_def, player_atk, player_def, player_current_hp) 纯函数"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 部分覆盖 — ADR-0003 将其分配到独立 #10 CombatForecast Autoload"
+
+  - id: TR-combat-003
+    system: combat
+    gdd: design/gdd/combat-system.md
+    requirement: "generate_round_sequence(同 6 int 参数) 纯函数，返回 Array[RoundEvent]"
+    created: 2026-06-26
+    revised: "2026-06-26"
+    status: active
+    adr_coverage: "✅ ADR-0006 决策 1（返回类型 Array[RoundEvent]）+ 决策 2（forecast_combat 委托约束）"
+
+  - id: TR-combat-004
+    system: combat
+    gdd: design/gdd/combat-system.md
+    requirement: "三个输出信号：combat_won(monster_id: String), combat_lost(monster_id: String), round_resolved(round_index, dmg_to_monster, monster_hp_remaining, dmg_to_player, player_hp_remaining)"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 部分覆盖 — ADR-0003 Key Interfaces 未列出 CombatSystem 信号"
+
+  - id: TR-combat-005
+    system: combat
+    gdd: design/gdd/combat-system.md
+    requirement: "零 RNG 约束：战斗代码禁止使用 randf/randi/RandomNumberGenerator（grep 验证）"
+    created: 2026-06-26
+    revised: "2026-06-26"
+    status: active
+    adr_coverage: "✅ ADR-0006 决策 3（forbidden_pattern rng_in_deterministic_combat，已注册进 architecture.yaml）"
+
+  - id: TR-combat-006
+    system: combat
+    gdd: design/gdd/combat-system.md
+    requirement: "逻辑/动画解耦：战斗结算代码无 await，信号通过 CONNECT_DEFERRED 触发视觉响应"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 部分覆盖 — ADR-0003 Autoload/Node 分离模式隐含此约束，未显式写入"
+
+  - id: TR-combat-007
+    system: combat
+    gdd: design/gdd/combat-system.md
+    requirement: "CombatResult / CombatForecast / RoundEvent 均为 class_name + RefCounted 强类型，禁用 Dictionary 接口"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: ADR-0001
+
+  - id: TR-combat-008
+    system: combat
+    gdd: design/gdd/combat-system.md
+    requirement: "战斗状态机（NoCombat/Resolving/Victory/Defeat）+ 重入保护（resolve_combat 执行期间不可再次调用）"
+    created: 2026-06-26
+    revised: "2026-06-26"
+    status: active
+    adr_coverage: "✅ ADR-0006 决策 4（私有 enum _CombatState + resolve_combat 重入守卫）"
+
+  # ── 全局跨系统需求 (cross) ────────────────────────────────────────────────
+
+  - id: TR-cross-001
+    system: cross
+    gdd: (all)
+    requirement: "GDUnit4 为唯一测试框架，headless 运行命令：godot --headless --script tests/gdunit4_runner.gd"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: ADR-0004
+
+  - id: TR-cross-002
+    system: cross
+    gdd: (all)
+    requirement: "WASM bundle ≤ 50MB（抖音小游戏上限）；超出须自定义 JS 加载方案"
+    created: 2026-06-26
+    revised: "2026-06-26"
+    status: active
+    adr_coverage: "⚠️ 部分覆盖 — ADR-0007（Proposed，spike-gated）；决策 2 定义三级体积策略；待 spike QQ-01 通过后转为 ✅"
+
+  - id: TR-cross-003
+    system: cross
+    gdd: (all)
+    requirement: "Compatibility 渲染后端（2D only，最适合低端设备 + WASM）"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 部分覆盖 — technical-preferences.md 已定，无 ADR 形式化"
+
+  - id: TR-cross-004
+    system: cross
+    gdd: (all)
+    requirement: "触控单指点按为主输入（无手柄支持，无键盘游戏流程）"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 部分覆盖 — technical-preferences.md 已定，无 ADR 形式化"
+
+  - id: TR-cross-005
+    system: cross
+    gdd: (all)
+    requirement: "性能预算：30fps 目标 / <50 draw calls / <256MB 内存"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 部分覆盖 — technical-preferences.md 已定，无 ADR 形式化"
+
+  - id: TR-cross-006
+    system: cross
+    gdd: (all)
+    requirement: "所有信号连接使用 Callable 语法（禁止字符串式 connect('signal', obj, 'method')）"
+    created: 2026-06-26
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 部分覆盖 — architecture.md 注记，deprecated-apis.md 记录，无 ADR 形式化约束"
+
+  # ── #6 网格移动与交互系统 (GridMovement) ────────────────────────────────
+  # 新增于 2026-06-29 /architecture-review（#6 GDD 自 In Review / 6 轮评审）
+
+  - id: TR-grid-001
+    system: grid
+    gdd: design/gdd/grid-movement.md
+    requirement: "GridMovement 为 Scene Node (Node2D)；静态楼层用 TileMapLayer 渲染 + per-cell 动态效果用池化覆盖 Node2D + PlayerMarker；不持有业务游戏状态（_passable 为渲染辅助状态，非业务状态）"
+    created: 2026-06-29
+    revised: "2026-06-29"
+    status: active
+    adr_coverage: "ADR-0003（#6 = Scene Node + game_logic_in_scene_node 禁用模式）, ADR-0009（TileMapLayer + 覆盖节点渲染方案）"
+
+  - id: TR-grid-002
+    system: grid
+    gdd: design/gdd/grid-movement.md
+    requirement: "四状态机 IDLE/PREVIEWING/MOVING/LOCKED + tap 分发路由（M1）；非 IDLE 状态 tap 丢弃不缓存不延迟"
+    created: 2026-06-29
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 无 ADR 形式化 — Scene Node 内部状态机实现细节（对比 #5 战斗状态机有 ADR-0006）"
+
+  - id: TR-grid-003
+    system: grid
+    gdd: design/gdd/grid-movement.md
+    requirement: "BFS 4 方向寻路（F-REACH）+ 非 EMPTY 格相邻可达性判定（M3）；O(256)=O(1)，<0.1ms"
+    created: 2026-06-29
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 无 ADR — 系统内部算法（可达性穿越规则已在 GDD F-REACH 形式化）"
+
+  - id: TR-grid-004
+    system: grid
+    gdd: design/gdd/grid-movement.md
+    requirement: "_passable: Array[bool]（256）渲染辅助查表；响应 cell_cleared/door_opened 前先做 floor_id 校验，不匹配静默丢弃（M6）"
+    created: 2026-06-29
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 无 ADR — 内部缓存状态（floor_id 校验防跨楼层污染由 AC-SIG-7/7b 验证）"
+
+  - id: TR-grid-005
+    system: grid
+    gdd: design/gdd/grid-movement.md
+    requirement: "CombatForecast 拆分访问：forecast_combat 经 CombatForecastService 全局名调用；4 个 UI 接口（show_overlay/hide_overlay/get_overlay_screen_rect/get_x_button_screen_rect）经 @export var forecast_overlay 引用调用"
+    created: 2026-06-29
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ ADR-0008（Proposed）— 待 ADR-0008 Accepted 后 #6 调用名同步"
+
+  - id: TR-grid-006
+    system: grid
+    gdd: design/gdd/grid-movement.md
+    requirement: "触控拦截方案 B：_input() 内用 get_overlay_screen_rect()/get_x_button_screen_rect()（屏幕空间坐标）做 Rect2 命中分流（× 取消 / 吞事件 / fallthrough 格子）"
+    created: 2026-06-29
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ ADR-0008 F-RECT 方案 a（Proposed）— 坐标系一致性 QQ-ADR8-01 BLOCKING 实测兜底"
+
+  - id: TR-grid-007
+    system: grid
+    gdd: design/gdd/grid-movement.md
+    requirement: "楼层切换重建性能：原 256 CellNode 单帧 2.5–13ms 逼近 33ms 帧预算；方案 = TileMapLayer 批量 set_cell（< 2ms，draw call 近 1）+ 池化覆盖节点"
+    created: 2026-06-29
+    revised: "2026-06-29"
+    status: active
+    adr_coverage: "✅ ADR-0009（TileMapLayer 静态底 + 池化覆盖节点；调用契约/atlas 约束/禁 _process）"
+
+  - id: TR-grid-008
+    system: grid
+    gdd: design/gdd/grid-movement.md
+    requirement: "可测性约束：LOCK_TIMEOUT 须依赖注入（禁硬编码 SceneTree Timer，AC-LOCK-5b）；floor_changed 用 Flag 模式延迟处理（禁 tween.stop/kill，AC-SIG-5b）"
+    created: 2026-06-29
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ CI-Lint 约束，无 ADR — 由 GDD AC + CI grep 强制"
+
+  - id: TR-grid-009
+    system: grid
+    gdd: design/gdd/grid-movement.md
+    requirement: "信号契约：player_moved(new_pos) 每格发一次（非整路径一次，AC-VIS-4）；接收 cell_cleared/door_opened/floor_changed/grid_unlock"
+    created: 2026-06-29
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ 部分覆盖 — 信号契约未注册进 architecture.yaml interfaces:[]（空）"
+
+  # ── #10 战斗预演系统 (CombatForecast) ────────────────────────────────────
+  # 新增于 2026-06-29 /architecture-review（#10 GDD In Revision，第3轮评审后）
+
+  - id: TR-forecast-001
+    system: forecast
+    gdd: design/gdd/combat-forecast.md
+    requirement: "宿主拆分：CombatForecastService（Autoload，纯代理）+ CombatForecastOverlay（Scene Node，CanvasLayer>Control@game.tscn）"
+    created: 2026-06-29
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ ADR-0008（Proposed）— amend ADR-0003 [9] 条目；待 Accepted"
+
+  - id: TR-forecast-002
+    system: forecast
+    gdd: design/gdd/combat-forecast.md
+    requirement: "forecast_combat 直接转调 #5 CombatSystem.forecast_combat（不重复战斗数学；每次 PREVIEWING 进入单次调用，非轮询）"
+    created: 2026-06-29
+    revised: ""
+    status: active
+    adr_coverage: "✅ ADR-0006（forecast 权威 + 委托约束）+ ADR-0008（Service 代理，Proposed）"
+
+  - id: TR-forecast-003
+    system: forecast
+    gdd: design/gdd/combat-forecast.md
+    requirement: "对外 5 接口：forecast_combat(6 int)；show_overlay(forecast, col, row) 3 参；hide_overlay()；get_overlay_screen_rect()/get_x_button_screen_rect() 返回屏幕空间 Rect2"
+    created: 2026-06-29
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ ADR-0008（Proposed）锁定 show_overlay 3 参签名"
+
+  - id: TR-forecast-004
+    system: forecast
+    gdd: design/gdd/combat-forecast.md
+    requirement: "Rect2 同帧缓存（CF-4）：show_overlay() 内 get_global_rect() 同步缓存；禁用 Container 全手动定位 Label；原子更新顺序（内容→position/size→强制 transform 同步→相邻赋值两 Rect2）"
+    created: 2026-06-29
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ ADR-0008 B-2（Proposed）— 同帧 get_global_rect QQ-ADR8-03 BLOCKING 实测兜底"
+
+  - id: TR-forecast-005
+    system: forecast
+    gdd: design/gdd/combat-forecast.md
+    requirement: "屏幕空间坐标系一致性：两 Rect2 与 InputEventScreenTouch.position 同坐标系（canvas_items + Overlay CanvasLayer follow_viewport_enabled=true，F-RECT 方案 a）"
+    created: 2026-06-29
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ ADR-0008 F-RECT（Proposed）— QQ-ADR8-01 BLOCKING；专家 N-2 建议 QQ-ADR8-06(Douyin) 升 BLOCKING"
+
+  - id: TR-forecast-006
+    system: forecast
+    gdd: design/gdd/combat-forecast.md
+    requirement: "LOSE 路径不展示任何由 CombatForecast 推算的数字（无回合/伤害/「能撑 K 回合」）；仅红色主题 + 非颜色冗余标识 lose_indicator「会死」+ 0 血"
+    created: 2026-06-29
+    revised: ""
+    status: active
+    adr_coverage: "N/A — 设计决策（根因 A），无需架构 ADR；CF-3 色盲约束 BLOCKING"
+
+  - id: TR-forecast-007
+    system: forecast
+    gdd: design/gdd/combat-forecast.md
+    requirement: "确认手势可发现性（CF-7）：覆盖层常驻 hint_label「再次点击怪物进攻」+ #6 目标怪物格脉冲高亮（归 #6 渲染）；覆盖层不遮蔽目标格 ≥1/2 格"
+    created: 2026-06-29
+    revised: ""
+    status: active
+    adr_coverage: "N/A — 跨系统呈现层设计；无需 ADR（呈现层补可发现性，不加 CTA/改机制）"
+
+  - id: TR-forecast-008
+    system: forecast
+    gdd: design/gdd/combat-forecast.md
+    requirement: "mouse_filter：× 按钮 MOUSE_FILTER_IGNORE，覆盖层根 Control MOUSE_FILTER_STOP；CombatForecastService._ready() assert(CombatSystem != null) 启动顺序守卫"
+    created: 2026-06-29
+    revised: ""
+    status: active
+    adr_coverage: "⚠️ ADR-0008/ADR-0002（Proposed）— 专家 N-4：release build assert 被剥离，建议追加 if+push_error 守卫（CombatSystem 在 Core 层不被 GameBootstrap 覆盖）"

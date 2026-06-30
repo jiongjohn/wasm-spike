@@ -1,0 +1,4 @@
+# Unit tests go here — one subdirectory per system.
+# 例：tests/unit/entity_db/、tests/unit/combat_system/、tests/unit/player_stats/、
+#     tests/unit/grid_movement/、tests/unit/combat_forecast/
+# 命名：[system]_[feature]_test.gd；函数 test_[scenario]_[expected]

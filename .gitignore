@@ -1,3 +1,28 @@
+# === Throwaway export spike (prototypes/wasm-export-spike) ===
+# 保留文档与 harness 源（README/RUNBOOK/spike_*.gd/SpikeMain.tscn/project.godot/data）；
+# 忽略可重装的 addons（ttsdk 14.7M + gdUnit4 副本）、导出产物、scratch 残留。
+prototypes/wasm-export-spike/addons/
+prototypes/wasm-export-spike/godot/
+prototypes/wasm-export-spike/game.js
+prototypes/wasm-export-spike/game.json
+prototypes/wasm-export-spike/godot.launcher.js
+prototypes/wasm-export-spike/godot.config.js
+prototypes/wasm-export-spike/project.config.json
+prototypes/wasm-export-spike/src/
+prototypes/wasm-export-spike/tests/
+prototypes/wasm-export-spike/verify_*.gd
+prototypes/wasm-export-spike/verify_*.gd.uid
+prototypes/wasm-export-spike/.godot/
+
+# === GDUnit4 生成的测试报告（HTML/XML，运行时产物）===
+reports/
+
+# === 无关的归档原型（另一个游戏 dash-cleave-roguelike）===
+archive/
+
+# === macOS zip 解压残留 ===
+__MACOSX/
+
 # === IDE and Editor ===
 .vs/
 .vscode/settings.json

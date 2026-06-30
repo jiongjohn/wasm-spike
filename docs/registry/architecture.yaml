@@ -30,7 +30,7 @@
 #   Superseded entries:     Grep pattern="status: superseded"
 
 version: 1
-last_updated: ""
+last_updated: "2026-06-26"
 
 # ─── STATE OWNERSHIP ─────────────────────────────────────────────────────────
 # Who is the authoritative owner of each piece of shared game state.
@@ -100,7 +100,23 @@ interfaces: []
 # Register a budget when an ADR explicitly claims a frame time allocation.
 # The registry lets /architecture-review verify the total doesn't exceed the target.
 
-performance_budgets: []
+performance_budgets:
+  - target_fps: 30
+    total_frame_budget_ms: 33.3
+    platform: All   # 抖音小游戏 / 低端安卓
+    adr: docs/architecture/adr-0007-wasm-douyin-export-pipeline.md
+    notes: "项目级帧预算（technical-preferences.md）：30fps / <50 draw calls / <256MB"
+    added: 2026-06-29
+
+  - system: grid-floor-switch
+    status: "proposed_pending: ADR-0009"   # ⚠️ ADR-0009 仍 Proposed
+    budget_ms: 2.0
+    adr: docs/architecture/adr-0009-grid-floor-rebuild-performance.md
+    notes: "#6 楼层切换重建预算 <2ms（vs 原 256 CellNode 重建 2.5–13ms）；网格 draw call <5（单 atlas TileSet 合并）。TileMapLayer 批量 set_cell"
+    referenced_by:
+      - docs/architecture/adr-0009-grid-floor-rebuild-performance.md
+    added: 2026-06-29
+    revised: ""
 
 # Example:
 #
@@ -131,7 +147,132 @@ performance_budgets: []
 # Register an API decision when the choice is non-obvious and other ADRs might
 # make a different choice for the same purpose without knowing this was decided.
 
-api_decisions: []
+api_decisions:
+  - purpose: cross_module_data_types
+    status: active
+    api: "class_name + Resource 子类（用 .new()/from_dict 从 JSON 构造，不经 .tres/ResourceLoader）"
+    not: "Dictionary；裸 RefCounted（4.6.3 实证：RefCounted 无 duplicate/duplicate_deep，无法承载只读副本契约）"
+    adr: docs/architecture/adr-0001-data-type-implementation.md
+    reason: "强类型字段、编译期键名校验、跨文件可引用、headless 可测；Resource 提供 duplicate()/duplicate_deep()（只读副本契约所需），RefCounted 无此二方法（2026-06-29 spike 实证 prototypes/wasm-export-spike/verify_dup.gd）；JSON 构造路径不产生 resource_path、不进 ResourceLoader 缓存；**所有数据字段须 @export**（duplicate*/duplicate_deep 只拷贝 @export 属性，plain var 副本为空——verify_dup3 实证）。适用于 MonsterEntry/ItemEntry/KeyEntry/FloorEntry/CellEntry/CombatResult/CombatForecast/RoundEvent"
+    referenced_by:
+      - docs/architecture/adr-0001-data-type-implementation.md
+      - docs/architecture/adr-0005-data-file-organization.md
+      - docs/architecture/adr-0009-grid-floor-rebuild-performance.md
+    added: 2026-06-25
+    revised: "2026-06-29（原 api=class_name + RefCounted 子类；spike 实证 RefCounted 无 duplicate/duplicate_deep，改 Resource）"
+
+  - purpose: readonly_data_source_access
+    status: active
+    api: "getter 返回 duplicate()（扁平）/ duplicate_deep()（嵌套，4.5+）副本 —— 二者均为 Resource 方法（载体 Resource，见 cross_module_data_types）"
+    not: "返回数据库内部原始引用"
+    adr: docs/architecture/adr-0001-data-type-implementation.md
+    reason: "下游对副本的写入不污染权威数据源（EntityDB/FloorDB/TuningConfig）。FloorEntry 含嵌套 grid 用 duplicate_deep()；扁平结构用 duplicate()。注：duplicate()/duplicate_deep() 是 Resource 方法，RefCounted 无——故载体必须是 Resource"
+    referenced_by:
+      - docs/architecture/adr-0001-data-type-implementation.md
+    added: 2026-06-25
+    revised: "2026-06-29（澄清：副本方法为 Resource 方法，载体随 ADR-0001 修订定为 Resource）"
+
+  - purpose: foundation_autoload_startup_order
+    status: active
+    api: "Project Settings Autoload 列表排序：TuningConfig[1] → EntityDB[2] → FloorDB[3] → GameBootstrap[4]"
+    not: "信号异步初始化（await dep.database_ready）或不定顺序的 Autoload 列表"
+    adr: docs/architecture/adr-0002-autoload-startup-order.md
+    reason: "Godot 4 保证 _ready() 按列表顺序同步调用；同步 JSON 加载无需异步机制；await 在 _ready() 中会破坏顺序保证并在 WASM 中产生未定义行为"
+    referenced_by:
+      - docs/architecture/adr-0002-autoload-startup-order.md
+    added: 2026-06-25
+    revised: ""
+
+  - purpose: foundation_autoload_readiness_check
+    status: active
+    api: "is_initialized: bool（只读 getter，_ready() 末尾成功后设 true）+ assert(dep.is_initialized) 守卫（debug）+ GameBootstrap if 守卫（release）"
+    not: "轮询 dep.is_initialized 而不做守卫，或依赖 database_ready 信号进行时序协调"
+    adr: docs/architecture/adr-0002-autoload-startup-order.md
+    reason: "assert 守卫在 debug build 快速失败；GameBootstrap if 守卫在 release build 保留；database_ready 信号在场景节点 _ready() 之前已 emit，不可用于时序协调"
+    referenced_by:
+      - docs/architecture/adr-0002-autoload-startup-order.md
+    added: 2026-06-25
+    revised: ""
+
+  - purpose: testing_framework
+    status: active
+    api: "GDUnit4（addons/gdunit4/）；runner: `godot --headless --script tests/gdunit4_runner.gd`"
+    not: "GUT；无框架原生 assert；WASM 内运行测试"
+    adr: docs/architecture/adr-0004-testing-framework.md
+    reason: "所有 GDD AC 均按 GDUnit4 API 设计（assert_that/SignalOrderSpy）；GDUnit4 原生支持 Godot 4 headless CI；GUT 对 Godot 4 支持滞后"
+    referenced_by:
+      - docs/architecture/adr-0004-testing-framework.md
+    added: 2026-06-25
+    revised: ""
+
+  - purpose: core_feature_system_hosting
+    status: active
+    api: "Autoload=持久化状态或3+消费者的无状态服务；Scene Node=渲染/触控输入/场景绑定；破平规则：持久化状态强制 Autoload"
+    not: "所有系统均为 Autoload；或所有 Core/Feature 系统均为 RefCounted DI 注入"
+    adr: docs/architecture/adr-0003-system-hosting.md
+    reason: "Autoload 保证状态跨楼层存活；Scene Node 利用 Godot 编辑器场景工具；持久化状态在 Node 中需要额外保存/恢复机制。分类见 ADR-0003 表格（13 个 MVP 系统全部分类）。注：#10 CombatForecast 的分类被 ADR-0008 细化为拆分（Service Autoload + Overlay Scene Node）。"
+    referenced_by:
+      - docs/architecture/adr-0003-system-hosting.md
+      - docs/architecture/adr-0008-combat-forecast-hosting-split.md
+    added: 2026-06-25
+    revised: "2026-06-29（ADR-0008 #10 拆分结构部分已部分 Accept 并生效 [Service Autoload + Overlay Scene Node + @export 访问]；F-RECT 坐标前提 spike-pending QQ-ADR8-01；ADR-0003 base stance 本身已 Accepted）"
+
+  - purpose: data_file_format_and_discovery
+    status: active
+    api: "JSON 文件打包进 res:// PCK；FileAccess.get_file_as_string() 读取；manifest.json 清单用于楼层发现；所有 int 字段显式 int() 转型；enum 字段使用字符串名称"
+    not: ".tres Resource 文件；DirAccess 动态目录扫描；user:// 路径；裸 Dictionary 直接索引 parse 结果（须先 null-check）"
+    adr: docs/architecture/adr-0005-data-file-organization.md
+    reason: ".tres 静默填缺失字段（违反 AC-09 可检测性）；DirAccess 在 WASM PCK VFS 中不返回目录列表；user:// 在 WASM 首启时可能为空；JSON.parse_string() 返回 null on error，须 null-check 后再赋 Dictionary"
+    referenced_by:
+      - docs/architecture/adr-0005-data-file-organization.md
+    added: 2026-06-25
+    revised: ""
+
+  - purpose: combat_sequence_return_type
+    status: active
+    api: "generate_round_sequence(...) -> Array[RoundEvent]（强类型 typed array）；forecast_combat 实现必须内部委托 generate_round_sequence，不得独立并行实现"
+    not: "Array（untyped）；Array[Dictionary]；forecast_combat 独立数学路径"
+    adr: docs/architecture/adr-0006-deterministic-combat-complete-interface.md
+    reason: "ADR-0001 untyped_dictionary_public_interface 禁用模式延伸至集合返回值；forecast_combat 独立实现会创建第二个确定性权威源，数值漂移威胁 AC-SEQ-CONSISTENCY（三路末态一致性）"
+    referenced_by:
+      - docs/architecture/adr-0006-deterministic-combat-complete-interface.md
+    added: 2026-06-26
+    revised: ""
+
+  - purpose: renderer_compatibility_only
+    status: active
+    api: "Compatibility 渲染后端（OpenGL ES 3.0 / WebGL 2.0）；Project Settings renderer/rendering_method = gl_compatibility"
+    not: "Forward+ 渲染器；Mobile 渲染器（均依赖 Vulkan/D3D12/Metal，WASM 不可用）"
+    adr: docs/architecture/adr-0007-wasm-douyin-export-pipeline.md
+    reason: "WASM/Douyin 小游戏 WebView 仅支持 WebGL 2.0，不支持 Vulkan；Compatibility 是 Godot 4.x 中唯一支持 WebGL 2.0 的渲染后端（引擎专家 ES-7 确认）"
+    referenced_by:
+      - docs/architecture/adr-0007-wasm-douyin-export-pipeline.md
+    added: 2026-06-26
+    revised: ""
+
+  - purpose: combat_forecast_hosting_split
+    status: active   # 结构决策 2026-06-29 部分 Accept 生效；⚠️ 决策 4 坐标子项（canvas_items + follow_viewport_enabled=true，F-RECT）仍 spike-pending QQ-ADR8-01——未过前 #6 不得把坐标命中当作已验证
+    api: "CombatForecastService(Autoload, 纯代理 #5 forecast_combat) + CombatForecastOverlay(Scene Node, CanvasLayer>Control@game.tscn)；#6 经 @export var forecast_overlay 引用调用 4 个 UI 接口，forecast_combat 走 Service 全局名；项目 stretch/mode=canvas_items、无 SubViewport、Overlay CanvasLayer follow_viewport_enabled=true（F-RECT 方案 a，坐标对齐待 QQ-ADR8-01 实测）"
+    not: "单一 Autoload 同时持有 UI Control 子树（违反 autoload_holds_scene_node_reference）；SubViewport 用于 gameplay；CanvasLayer follow_viewport_enabled 留默认 false"
+    adr: docs/architecture/adr-0008-combat-forecast-hosting-split.md
+    reason: "ADR-0003 调节面：渲染 UI+触控 Rect2 → Scene Node，无状态多消费者服务 → Autoload；本系统兼具二者须拆分。@export 引用禁令仅约束 Autoload，#6 是 Scene Node 不触发。canvas_items+follow_viewport_enabled=true 使 get_global_rect() 与 InputEventScreenTouch.position 同坐标系（实测 QQ-ADR8-01..06 兜底）。"
+    referenced_by:
+      - docs/architecture/adr-0008-combat-forecast-hosting-split.md
+      - docs/architecture/adr-0003-system-hosting.md
+      - design/gdd/grid-movement.md
+    added: 2026-06-29
+    revised: "2026-06-29（ADR-0008 部分 Accept：结构决策 proposed_pending→active 生效；决策 4 坐标前提 spike-pending QQ-ADR8-01）"
+
+  - purpose: grid_static_rendering
+    status: "proposed_pending: ADR-0009"   # ⚠️ ADR-0009 仍 Proposed
+    api: "#6 静态楼层用单个 TileMapLayer（单 atlas TileSet，set_cell 批量重绘）；per-cell 动态效果用按需池化覆盖 Node2D"
+    not: "256 个独立常驻 CellNode；纯对象池（256 预分配 reset）；朴素销毁+重建"
+    adr: docs/architecture/adr-0009-grid-floor-rebuild-performance.md
+    reason: "TileMapLayer C++ 批量 set_cell 比 256 次 GDScript reset 快 1-2 个数量级，单 atlas 合并 draw call 至近 1 次；per-cell 动态效果（CF-7 高亮/门楼梯动画）由少量覆盖节点承载，避免 256 常驻节点的遍历/通知基线开销。_passable/BFS/状态机保留 GridMovement 逻辑层（headless 可测）"
+    referenced_by:
+      - docs/architecture/adr-0009-grid-floor-rebuild-performance.md
+    added: 2026-06-29
+    revised: ""
 
 # Example:
 #
@@ -157,7 +298,83 @@ api_decisions: []
 # Register a pattern when an ADR explicitly bans it AND other ADRs might
 # unknowingly use it (i.e., it's a tempting but wrong approach for this project).
 
-forbidden_patterns: []
+forbidden_patterns:
+  - pattern: untyped_dictionary_public_interface
+    status: active
+    description: "公共接口（getter 返回值、信号参数、跨模块函数签名）不得使用 untyped Dictionary。必须用 class_name + RefCounted 强类型。"
+    why: "Dictionary 键名错误运行时才暴露，违反强类型编码规范，AC 类型断言无法编译期验证，下游无法引用类型。"
+    adr: docs/architecture/adr-0001-data-type-implementation.md
+    added: 2026-06-25
+
+  - pattern: return_internal_reference_from_readonly_source
+    status: active
+    description: "只读数据源（EntityDB/FloorDB/TuningConfig）的 getter 不得返回内部原始对象引用，必须返回 duplicate()/duplicate_deep() 副本。"
+    why: "返回原始引用使下游写入直接污染权威数据源，破坏只读契约（违反 AC-FL-13/AC-TC-13）。"
+    adr: docs/architecture/adr-0001-data-type-implementation.md
+    added: 2026-06-25
+
+  - pattern: await_in_foundation_load_validate
+    status: active
+    description: "Foundation Autoload 的 _load_and_validate() 实现禁止包含任何 await 表达式。_load_and_validate() 必须为纯同步函数。"
+    why: "await 在 _ready() 中将后续代码推迟到下一帧，导致 _initialized = true 在当前 _ready() 返回后才执行；下一个 Autoload 的 _ready() 随即开始，其 assert(dep.is_initialized) 守卫在前置依赖尚未完成时触发，整个 Autoload 顺序保证机制失效（ADR-0002 核心机制依赖同步完成保证）。"
+    adr: docs/architecture/adr-0002-autoload-startup-order.md
+    added: 2026-06-25
+
+  - pattern: scene_node_connect_database_ready_in_ready
+    status: active
+    description: "场景节点不得在自身的 _ready() 中连接 Foundation Autoload（TuningConfig/EntityDB/FloorDB）的 database_ready 信号后期望收到 emit。"
+    why: "所有 Autoload 的 _ready()（含 database_ready.emit()）在任意场景节点 _ready() 之前已全部完成；场景节点通过自身 _ready() 连接后，信号早已 emit，连接后永远不会再触发。应使用 is_initialized 标志直接检查，而非信号监听。"
+    adr: docs/architecture/adr-0002-autoload-startup-order.md
+    added: 2026-06-25
+
+  - pattern: autoload_holds_scene_node_reference
+    status: active
+    description: "Autoload 不得在类变量中持有具体 Scene Node 类型的引用（如 `var grid: GridMovement`）。Autoload 通过自身信号与 Scene Node 通信；Scene Node 通过直接方法调用与 Autoload 通信。"
+    why: "Scene 重载或场景切换时 Autoload 持有的 Node 引用变为失效悬挂引用，导致空引用崩溃。信号反转依赖：Autoload 发出信号，Node 连接，Autoload 无需持有引用。"
+    adr: docs/architecture/adr-0003-system-hosting.md
+    added: 2026-06-25
+
+  - pattern: game_logic_in_scene_node
+    status: active
+    description: "Scene Node（GridMovement/HUD/NumberFeedback）不得拥有有状态的游戏逻辑或持久化游戏状态。Scene Node 负责视觉渲染和输入捕获；将业务逻辑委托给对应的 Autoload 方法调用。"
+    why: "游戏逻辑在 Scene Node 中无法跨楼层持久化（Node 随场景重载消亡）；无法在 GDUnit4 headless 模式下测试（需要场景树）；违反 ADR-0003 的宿主分类调节面。"
+    adr: docs/architecture/adr-0003-system-hosting.md
+    added: 2026-06-25
+
+  - pattern: dir_access_floor_discovery
+    status: active
+    description: "Foundation Autoload（FloorDB 及任何后续 Autoload）不得使用 DirAccess.get_files_at('res://data/floors/') 或任何 DirAccess 目录枚举来发现数据文件。楼层发现必须通过 manifest.json 清单文件。"
+    why: "DirAccess.get_files_at('res://') 在 WASM PCK VFS 中不返回目录条目（VFS 无目录元数据，仅有文件路径），调用结果为空列表，楼层静默丢失不报错。manifest.json 方案在添加楼层时多一步更新清单，成本可接受，换取 WASM 兼容性确定性。"
+    adr: docs/architecture/adr-0005-data-file-organization.md
+    added: 2026-06-25
+
+  - pattern: rng_in_deterministic_combat
+    status: active
+    description: "CombatSystem 实现文件（src/combat_system.gd 及其导入文件）不得包含任何随机数调用：禁止 randf()、randi()、randf_range()、randi_range()、RandomNumberGenerator、seed()。RNG 亦不得通过依赖注入注入 CombatSystem（外部传入 RNG 同样违反此约束）。"
+    why: "零随机数是 P2「算得清的确定性」的硬约束（combat-system.md C6）：给定相同属性入参，战斗结果必须完全可复算，支柱「算得清的确定性」与「伤害预演」（#10）的核心承诺依赖此保证。引入任何 RNG 调用会破坏确定性，使 AC-SCOPE-NORNG 和 AC-SEQ-CONSISTENCY 全部失效。"
+    adr: docs/architecture/adr-0006-deterministic-combat-complete-interface.md
+    added: 2026-06-26
+
+  - pattern: forward_plus_renderer_in_wasm_project
+    status: active
+    description: "本项目 Project Settings 中不得将渲染后端切换至 Forward+ 或 Mobile（即便在本地开发机上）。始终使用 Compatibility 渲染后端，以确保本地与 WASM/Douyin 导出行为一致。"
+    why: "Forward+ 和 Mobile 渲染器依赖 Vulkan/D3D12/Metal，WASM/WebGL 2.0 不支持这些图形 API；在 Forward+ 下开发调试会导致本地与 WASM 行为不一致（着色器、CanvasItem material 参数差异），且切换成本在每次导出时都需要人工确认（ADR-0007 决策 1）。"
+    adr: docs/architecture/adr-0007-wasm-douyin-export-pipeline.md
+    added: 2026-06-26
+
+  - pattern: cell_level_process_in_grid
+    status: "proposed_pending: ADR-0009"   # ⚠️ ADR-0009 仍 Proposed
+    description: "#6 网格的 cell / per-cell 覆盖节点不得使用 per-frame _process()/_physics_process()。动态效果（CF-7 脉冲高亮、门/楼梯动画）须用 Tween 或 AnimationPlayer 驱动并在结束后归还对象池。"
+    why: "避免网格渲染产生大量 per-frame 处理基线开销；TileMapLayer cell 本就无脚本，覆盖节点数量须按需最小化。"
+    adr: docs/architecture/adr-0009-grid-floor-rebuild-performance.md
+    added: 2026-06-29
+
+  - pattern: repeated_get_floor_in_switch_loop
+    status: "proposed_pending: ADR-0009"   # ⚠️ ADR-0009 仍 Proposed
+    description: "#6 楼层切换时只调用一次 FloorDB.get_floor(new_floor_id) 取整个 FloorEntry 副本；禁止在 set_cell/_passable 遍历循环内或 per-cell 路径中重复调用 get_floor()。"
+    why: "FloorDB.get_floor 每次 duplicate_deep 产出 256 个 CellEntry（ADR-0001）；在 256 格循环内重复调用 → 单次切换 65536 个 CellEntry 待 GC，低端 WASM GC 暂停显著。"
+    adr: docs/architecture/adr-0009-grid-floor-rebuild-performance.md
+    added: 2026-06-29
 
 # Example:
 #

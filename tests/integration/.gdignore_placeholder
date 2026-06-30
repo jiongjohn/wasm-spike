@@ -1,0 +1,4 @@
+# Integration tests go here — one subdirectory per system / flow.
+# 例：tests/integration/combat_flow/、tests/integration/grid_movement/、
+#     tests/integration/combat_forecast/
+# 覆盖跨系统交互（PlayerStats+CombatSystem）、楼层重载、信号契约。

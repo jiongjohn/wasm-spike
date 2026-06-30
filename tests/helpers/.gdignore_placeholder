@@ -1,0 +1,5 @@
+# Test helper libraries go here.
+# 计划项（ADR-0004 §5）：
+#   signal_order_spy.gd — 信号顺序断言辅助（GDUnit4 无内置）；
+#     在首个需要信号顺序测试的 story（player-stats AC-FP04 系列）实现前创建。
+#   实现参考：design/gdd/player-stats-growth.md §AC-FP04 注释。

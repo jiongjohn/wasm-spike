@@ -15,154 +15,456 @@
 #   - When a new GDD references an existing entry, append its path to
 #     referenced_by. Do not create a duplicate entry.
 #
-# WRITTEN BY: /design-system (Phase 5 — after GDD sections are approved)
-#             /consistency-check (when resolving conflicts)
-# READ BY:    /design-system (Phase 2 — before authoring begins, and after
-#               Section C/D writes to conflict-check new entities/formulas)
-#             /consistency-check (primary input — grep-first, GDD-second)
-#             /review-all-gdds (Phase 1 — baseline for Phase 2 checks)
-#             /architecture-review (data structure and interface validation)
-#
-# SEARCH PATTERNS (for skills using Grep):
-#   All entity names:        Grep pattern="^  - name:" path="design/registry/entities.yaml"
-#   Specific entity:         Grep pattern="  - name: goblin" path="design/registry/entities.yaml"
-#   All items:               Grep pattern="^  - name:" path="design/registry/entities.yaml" (items section)
-#   What combat.md owns:     Grep pattern="source: design/gdd/combat.md"
-#   What inventory.md uses:  Grep pattern="referenced_by.*inventory"
-#   All gold values:          Grep pattern="value_gold:"
-#   Deprecated entries:      Grep pattern="status: deprecated"
-#
-# FORMAT: YAML. Consistent indentation is critical for grep reliability.
-#   Sections: entities | items | formulas | constants
-#   Each entry: name, status, source, referenced_by[], attributes{}, added, revised
+# FIELD NOTES (aligned to entity-database.md 二轮 design-review, 2026-06-24):
+#   - entity_type: MONSTER | ITEM | KEY — required type discriminant (规则 C2).
+#   - tier: MVP | VS — scope tier. VS entities MUST NOT enter MVP data set or
+#     MVP levels; MVP build validation rejects FRAGMENT (规则 C9 / AC-14).
+#   - stack_rule: ADDITIVE | HIGHEST_WINS (装备取最高值,原 ONCE 已作废, 规则 C8).
 
-version: 1
-last_updated: ""
+version: 2
+last_updated: "2026-06-25"
 
-# ─── ENTITIES ────────────────────────────────────────────────────────────────
-# Named game-world objects: enemies, NPCs, characters, factions, bosses.
-# Register an entity here when it appears in more than one GDD — e.g., an
-# enemy defined in combat.md that also drops items listed in inventory.md.
-#
-# Required fields: name, status, source, referenced_by, added
-# Attribute fields: any key stats that could appear in another GDD
-#   (health, damage, drops, faction, etc.)
+# ─── ENTITIES (MONSTERS) ──────────────────────────────────────────────────────
 
-entities: []
+entities:
+  - name: slime
+    status: active
+    tier: MVP
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+      - design/gdd/combat-system.md
+    entity_type: MONSTER
+    display_name: 史莱姆
+    hp: 20
+    atk: 8
+    def: 2
+    gold_drop: 5
+    is_boss: false
+    rare_drop_item_id: null
+    floor_first_appears: 1
+    added: "2026-06-23"
+    revised: ""
 
-# Example (remove when first real entry is added):
-#
-# entities:
-#   - name: goblin
-#     status: active              # active | deprecated
-#     source: design/gdd/combat.md
-#     referenced_by:
-#       - design/gdd/combat.md
-#       - design/gdd/inventory.md
-#     health: 40
-#     damage: 8
-#     drops:
-#       - item: goblin_arm        # must match an entry in items section
-#         qty: 1
-#         drop_rate: 0.8          # 0.0–1.0
-#     added: 2026-03-26
-#     revised: ""
+  - name: goblin
+    status: active
+    tier: MVP
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+      - design/gdd/combat-system.md
+    entity_type: MONSTER
+    display_name: 哥布林
+    hp: 50
+    atk: 18
+    def: 5
+    gold_drop: 10
+    is_boss: false
+    rare_drop_item_id: null
+    floor_first_appears: 2   # was 3 (2026-06-24) — aligned to floor-layout-data + game-tuning-config D1/D3 table
+    added: "2026-06-23"
+    revised: "2026-06-24"
+
+  - name: skeleton
+    status: active
+    tier: VS   # VS 数据追加 — NOT in MVP data set
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    entity_type: MONSTER
+    display_name: 骷髅兵
+    hp: 90
+    atk: 28
+    def: 10
+    gold_drop: 20
+    is_boss: false
+    rare_drop_item_id: null
+    floor_first_appears: 9
+    added: "2026-06-23"
+    revised: "2026-06-24"
+
+  - name: beast_king
+    status: active
+    tier: VS   # VS 数据追加 — NOT in MVP data set
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    entity_type: MONSTER
+    display_name: Boss 兽王
+    hp: 180
+    atk: 42
+    def: 15
+    gold_drop: 100
+    is_boss: true
+    rare_drop_item_id: sword_great
+    floor_first_appears: 15
+    added: "2026-06-23"
+    revised: "2026-06-24"
 
 
 # ─── ITEMS ───────────────────────────────────────────────────────────────────
-# Named collectables, equipment, consumables, crafting materials, currency.
-# Register an item when its name or value appears in more than one GDD.
-#
-# Required fields: name, status, source, referenced_by, added
-# Attribute fields: value_gold, weight, stackable, category, and any stat
-#   modifiers that another system (e.g., economy, crafting) might reference.
 
-items: []
+items:
+  - name: potion_small
+    status: active
+    tier: MVP
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    entity_type: ITEM
+    display_name: 小回血药
+    effect_type: HP_RESTORE
+    effect_value: 40
+    stack_rule: ADDITIVE
+    added: "2026-06-23"
+    revised: "2026-06-24"
 
-# Example:
-#
-# items:
-#   - name: goblin_arm
-#     status: active
-#     source: design/gdd/combat.md   # drop defined in combat GDD
-#     referenced_by:
-#       - design/gdd/combat.md
-#       - design/gdd/inventory.md    # inventory GDD lists its weight/stack rules
-#       - design/gdd/economy.md      # economy GDD references its sell price
-#     value_gold: 5
-#     weight: 1
-#     stackable: true
-#     category: crafting_material
-#     added: 2026-03-26
-#     revised: ""
+  - name: potion_large
+    status: active
+    tier: MVP
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    entity_type: ITEM
+    display_name: 大回血药
+    effect_type: HP_RESTORE
+    effect_value: 80
+    stack_rule: ADDITIVE
+    added: "2026-06-23"
+    revised: "2026-06-24"
+
+  - name: sword_iron
+    status: active
+    tier: MVP
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    entity_type: ITEM
+    display_name: 铁剑
+    effect_type: ATK_BOOST
+    effect_value: 8
+    stack_rule: HIGHEST_WINS   # was ONCE (作废) — 取最高值生效
+    added: "2026-06-23"
+    revised: "2026-06-24"
+
+  - name: sword_steel
+    status: active
+    tier: MVP
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    entity_type: ITEM
+    display_name: 精钢剑
+    effect_type: ATK_BOOST
+    effect_value: 14
+    stack_rule: HIGHEST_WINS
+    added: "2026-06-23"
+    revised: "2026-06-24"
+
+  - name: sword_great
+    status: active
+    tier: VS   # Boss 稀有掉落 — NOT in MVP data set
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    entity_type: ITEM
+    display_name: 巨剑（Boss 稀有掉落）
+    effect_type: ATK_BOOST
+    effect_value: 20
+    stack_rule: HIGHEST_WINS
+    notes: "Boss beast_king 的首次击败保证掉落"
+    added: "2026-06-23"
+    revised: "2026-06-24"
+
+  - name: shield_wood
+    status: active
+    tier: MVP
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    entity_type: ITEM
+    display_name: 木盾
+    effect_type: DEF_BOOST
+    effect_value: 5
+    stack_rule: HIGHEST_WINS
+    added: "2026-06-23"
+    revised: "2026-06-24"
+
+  - name: shield_iron
+    status: active
+    tier: MVP
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    entity_type: ITEM
+    display_name: 铁盾
+    effect_type: DEF_BOOST
+    effect_value: 10
+    stack_rule: HIGHEST_WINS
+    added: "2026-06-23"
+    revised: "2026-06-24"
+
+  - name: crystal_life
+    status: active
+    tier: MVP
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    entity_type: ITEM
+    display_name: 生命宝石
+    effect_type: MAXHP_BOOST
+    effect_value: 50
+    stack_rule: ADDITIVE
+    notes: "MVP 仅放置一颗; VS 第二颗须重估 D3 中位假设 (规则 C10)"
+    added: "2026-06-23"
+    revised: "2026-06-24"
+
+  - name: key_yellow
+    status: active
+    tier: MVP
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    entity_type: KEY   # KEY 是独立 entity_type (规则 C5), 不是 ITEM
+    display_name: 黄钥匙
+    effect_type: KEY
+    effect_value: 0
+    key_color: YELLOW
+    opens_door_color: YELLOW
+    added: "2026-06-23"
+    revised: "2026-06-24"
+
+  - name: key_blue
+    status: active
+    tier: MVP
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    entity_type: KEY
+    display_name: 蓝钥匙
+    effect_type: KEY
+    effect_value: 0
+    key_color: BLUE
+    opens_door_color: BLUE
+    added: "2026-06-23"
+    revised: "2026-06-24"
+
+  - name: fragment
+    status: active
+    tier: VS   # 软通货 — MVP build validation REJECTS FRAGMENT (规则 C9 / AC-14)
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    entity_type: ITEM
+    display_name: 钥匙碎片
+    effect_type: FRAGMENT
+    effect_value: 1
+    stack_rule: ADDITIVE
+    notes: "软通货,激励广告经济载体。VS 阶段由 #14 碎片经济处理; MVP 不得包含"
+    added: "2026-06-23"
+    revised: "2026-06-24"
 
 
 # ─── FORMULAS ────────────────────────────────────────────────────────────────
-# Named calculations with defined variables and output ranges.
-# Register a formula when its output feeds into another system's input,
-# or when another GDD references it by name.
-#
-# Required fields: name, status, source, referenced_by, variables[],
-#   output_range[min, max], added
-# Optional: expression (the actual formula), notes
 
-formulas: []
+formulas:
+  - name: def_constraint
+    status: active
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    description: "D1 — DEF 上限约束：怪物防御力的设计合法性检验。保证玩家在 N_max 回合内可击杀该怪物。"
+    expression: "max(1, player_ATK_expected - monster_DEF) >= ceil(monster_HP / N_max)"
+    variables:
+      - player_ATK_expected
+      - monster_DEF
+      - monster_HP
+      - N_max
+    output_range: [true, false]
+    notes: "N_max = 10（固定，安全范围 5–20）。启动时验证，违反则拒绝进入游戏。另含 DEF 独立上限校验 monster_DEF < player_ATK_expected (堵 HP=1 漏洞)。"
+    added: "2026-06-23"
+    revised: ""
 
-# Example:
-#
-# formulas:
-#   - name: damage_formula
-#     status: active
-#     source: design/gdd/combat.md
-#     referenced_by:
-#       - design/gdd/combat.md
-#       - design/gdd/progression.md   # progression GDD scales attack variable
-#     variables:
-#       - attack
-#       - defense
-#       - crit_chance
-#       - crit_multiplier
-#     output_range: [0, 999]
-#     expression: "max(0, attack - defense) * (1 + crit_chance * crit_multiplier)"
-#     notes: "Output feeds into health-system damage intake. Min is 0 (armour
-#       can absorb all damage). Max is uncapped in formula but tuning knob
-#       damage_cap in combat.md clamps at 999."
-#     added: 2026-03-26
-#     revised: ""
+  - name: monster_atk_ceiling
+    status: active
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    description: "D3 — 怪物 ATK 上限约束（死墙防护）：击杀该怪所受总伤不得超过玩家该楼层预期 HP 的安全比例。逐怪约束,不建模层并发。"
+    expression: "max(0, monster_ATK - player_DEF_expected) * ceil(monster_HP / max(1, player_ATK_expected - monster_DEF)) <= HP_BUDGET_RATIO * player_HP_expected"
+    variables:
+      - monster_ATK
+      - player_DEF_expected
+      - monster_HP
+      - player_ATK_expected
+      - monster_DEF
+      - HP_BUDGET_RATIO
+      - player_HP_expected
+    output_range: [true, false]
+    notes: "HP_BUDGET_RATIO 默认 0.35。过 D3 ≠ 层安全(不建模多怪累积)。player_*_expected 待 #3 落地后重跑。"
+    added: "2026-06-24"
+    revised: ""
+
+  - name: gold_drop_guide
+    status: active
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    description: "D2 — 金币价值参考公式：非强制,仅离线/编辑期调用,供关卡设计师设定 gold_drop 时参考。"
+    expression: "gold_drop_suggested = max(1, round(gold_base * ((monster_HP/player_HP_expected) + (monster_ATK/player_ATK_expected) + (monster_DEF/player_ATK_expected))))"
+    variables:
+      - monster_HP
+      - monster_ATK
+      - monster_DEF
+      - player_HP_expected
+      - player_ATK_expected
+      - gold_base
+    output_range: [1, null]
+    notes: "gold_base: 普通怪=10，Boss=25。max(1,...) 必须套在 round() 外层。reward_premium 目标：普通怪 0.5–0.8，Boss 1.3–2.0。"
+    added: "2026-06-23"
+    revised: ""
 
 
 # ─── CONSTANTS ───────────────────────────────────────────────────────────────
-# Named numerical values referenced across multiple systems.
-# Register a constant when it is defined in one GDD but another GDD must
-# agree with it (e.g., gold carry limit defined in economy but checked in
-# inventory, or base inventory slots defined in inventory but displayed in HUD).
-#
-# Required fields: name, status, source, referenced_by, value, unit, added
 
-constants: []
+constants:
+  - name: N_max
+    status: active
+    source: design/gdd/game-tuning-config.md
+    referenced_by:
+      - design/gdd/entity-database.md
+      - design/gdd/game-tuning-config.md
+      - design/gdd/combat-system.md
+    value: 10
+    unit: rounds
+    description: "DEF 上限约束中怪物可被击杀的最大回合数上限。安全范围 5–20。权威来源: #3 调参配置。entity-database.md 消费。"
+    added: "2026-06-23"
+    revised: "2026-06-24"
 
-# Example:
-#
-# constants:
-#   - name: gold_carry_limit
-#     status: active
-#     source: design/gdd/economy.md
-#     referenced_by:
-#       - design/gdd/economy.md
-#       - design/gdd/inventory.md   # inventory enforces the carry limit
-#       - design/gdd/ui.md          # HUD displays current gold vs limit
-#     value: 9999
-#     unit: gold
-#     added: 2026-03-26
-#     revised: ""
-#
-#   - name: base_inventory_slots
-#     status: active
-#     source: design/gdd/inventory.md
-#     referenced_by:
-#       - design/gdd/inventory.md
-#       - design/gdd/progression.md  # progression unlocks additional slots
-#     value: 20
-#     unit: slots
-#     added: 2026-03-26
-#     revised: ""
+  - name: HP_BUDGET_RATIO
+    status: active
+    source: design/gdd/game-tuning-config.md
+    referenced_by:
+      - design/gdd/entity-database.md
+      - design/gdd/game-tuning-config.md
+    value: 0.35
+    unit: ratio
+    description: "D3 中单只怪允许消耗的玩家血量上限占比。安全范围 0.05–1.0。权威来源: #3 调参配置。entity-database.md 消费。"
+    added: "2026-06-24"
+    revised: "2026-06-24"
+
+  - name: base_ATK
+    status: active
+    source: design/gdd/game-tuning-config.md
+    referenced_by:
+      - design/gdd/game-tuning-config.md
+      - design/gdd/player-stats-growth.md
+    value: 6
+    unit: "attack points"
+    description: "玩家裸装攻击力（无任何武器时）。player_ATK = base_ATK + atk_boost_effective(HIGHEST_WINS)。"
+    added: "2026-06-24"
+    revised: ""
+
+  - name: base_DEF
+    status: active
+    source: design/gdd/game-tuning-config.md
+    referenced_by:
+      - design/gdd/game-tuning-config.md
+      - design/gdd/player-stats-growth.md
+    value: 3
+    unit: "defense points"
+    description: "玩家裸装防御力（无任何盾时）。player_DEF = base_DEF + def_boost_effective(HIGHEST_WINS)。"
+    added: "2026-06-24"
+    revised: ""
+
+  - name: base_MaxHP
+    status: active
+    source: design/gdd/game-tuning-config.md
+    referenced_by:
+      - design/gdd/game-tuning-config.md
+      - design/gdd/player-stats-growth.md
+    value: 100
+    unit: "hp"
+    description: "玩家起始最大 HP。player_MaxHP = base_MaxHP + Σ(MAXHP_BOOST道具, ADDITIVE)。"
+    added: "2026-06-24"
+    revised: ""
+
+  - name: BATTLE_ROUND_DURATION
+    status: active
+    source: design/gdd/game-tuning-config.md
+    referenced_by:
+      - design/gdd/game-tuning-config.md
+      - design/gdd/combat-system.md
+    value: 0.3
+    unit: "seconds"
+    description: "单回合战斗动画+结算总时长（prototype 确认）。安全范围 0.15s–0.8s。决定战斗节奏体感。"
+    added: "2026-06-24"
+    revised: ""
+
+  - name: gold_base_normal
+    status: active
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    value: 10
+    unit: gold
+    description: "金币参考公式中普通怪物的基准倍率。安全范围 5–20。"
+    added: "2026-06-23"
+    revised: ""
+
+  - name: gold_base_boss
+    status: active
+    source: design/gdd/entity-database.md
+    referenced_by:
+      - design/gdd/entity-database.md
+    value: 25
+    unit: gold
+    description: "金币参考公式中 Boss 的基准倍率（含特殊奖励溢价）。安全范围 15–50。"
+    added: "2026-06-23"
+    revised: ""
+
+  - name: key_door_balance
+    status: active
+    source: design/gdd/floor-layout-data.md
+    referenced_by:
+      - design/gdd/floor-layout-data.md
+    description: "F-K1 — 单层钥匙-门颜色平衡约束：每层每种颜色的可拾取钥匙数必须 >= 该层该颜色的门数。防止单层死锁。"
+    expression: "KEY_COUNT(f, c) >= DOOR_COUNT(f, c)  [for each floor f, each color c in {YELLOW, BLUE}]"
+    variables:
+      - KEY_COUNT_f_c
+      - DOOR_COUNT_f_c
+    output_range: [true, false]
+    notes: "单层封闭策略（不跨层累积）。玩家可持有跨层钥匙，但数据层不建模运行时状态。启动时 ERROR。"
+    added: "2026-06-24"
+    revised: ""
+
+  - name: floor_exit_existence
+    status: active
+    source: design/gdd/floor-layout-data.md
+    referenced_by:
+      - design/gdd/floor-layout-data.md
+    description: "F-R1 — 出口存在性（弱连通性断言）：非顶层楼层至少有 1 个 STAIR_UP 格。顶层豁免。"
+    expression: "STAIR_UP_COUNT(f) >= 1  [for all f where floor_number < max_floor_number]"
+    variables:
+      - STAIR_UP_COUNT_f
+      - max_floor_number
+    output_range: [true, false]
+    notes: "弱连通性断言（非完整 BFS）。随机楼层引入（Alpha+ #20）时须升级为完整 BFS 校验。启动时 ERROR。"
+    added: "2026-06-24"
+    revised: ""
+
+  - name: t_cell
+    status: active
+    source: design/gdd/grid-movement.md
+    referenced_by:
+      - design/gdd/grid-movement.md
+    description: "TK-1 / F-MOV — 玩家标记单格移动动画时长（上限）。F-MOV 约束：T_total = path_length × T_cell ≤ 1500ms。"
+    expression: "T_total = path_length × T_cell"
+    variables:
+      - T_cell
+      - path_length
+      - T_total
+    output_range: [0, 1500]
+    notes: "默认 50ms；安全范围 20–67ms（GDD TK-1 第 2 轮收窄；联合约束 T_cell × MAX_PATH_LENGTH ≤ 1500ms）。若其他系统（如 CombatForecast #10 动画、楼层过渡）需引用移动节奏，应参考此注册值。"
+    added: "2026-06-26"
+    revised: ""

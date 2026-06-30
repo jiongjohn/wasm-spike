@@ -1,0 +1,8 @@
+{
+  "_comment": "Throwaway spike data — exercises FileAccess + JSON.parse_string + int() cast (ADR-0005) and nested grid for duplicate_deep (ADR-0001).",
+  "monster": { "id": "slime", "hp": 20, "atk": 3, "defense": 0 },
+  "grid": [
+    [ { "cell_type": "WALL" }, { "cell_type": "EMPTY" } ],
+    [ { "cell_type": "ENTITY", "entity_id": "slime" }, { "cell_type": "EMPTY" } ]
+  ]
+}
