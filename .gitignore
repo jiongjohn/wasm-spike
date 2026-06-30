@@ -23,6 +23,10 @@ archive/
 # === macOS zip 解压残留 ===
 __MACOSX/
 
+# === 抖音导出产物目录（误导出到工作区的 wrapper：game.js/game.json/project.config.json 等）===
+# 建议导出到 build/（已忽略）；以下为历史误导出目录
+魔塔测试/
+
 # === IDE and Editor ===
 .vs/
 .vscode/settings.json
