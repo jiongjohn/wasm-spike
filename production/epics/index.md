@@ -7,7 +7,7 @@ Manifest Version: 2026-06-29
 | Epic | Layer | System | GDD | Stories | Status |
 |------|-------|--------|-----|---------|--------|
 | [game-tuning-config](game-tuning-config/EPIC.md) | Foundation | #3 调参配置 | design/gdd/game-tuning-config.md | 3 stories | ✅ Complete |
-| [entity-database](entity-database/EPIC.md) | Foundation | #1 实体数据库 | design/gdd/entity-database.md | Not yet created | Ready |
+| [entity-database](entity-database/EPIC.md) | Foundation | #1 实体数据库 | design/gdd/entity-database.md | 6 stories | Ready |
 | [floor-layout-data](floor-layout-data/EPIC.md) | Foundation | #2 楼层数据 | design/gdd/floor-layout-data.md | Not yet created | Ready |
 
 ## 说明
