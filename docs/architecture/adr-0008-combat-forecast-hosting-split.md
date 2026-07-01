@@ -101,14 +101,20 @@ Scene 层（game.tscn）:
 
 ```gdscript
 # ── CombatForecastService（Autoload）──
-class_name CombatForecastService extends Node:
+# ADR-0010 订正：CombatForecastService 是 Autoload → 脚本【不声明 class_name】（注册名
+# CombatForecastService 提供全局名）。原 `class_name CombatForecastService extends Node` 改为：
+extends Node:  # （无 class_name；见 ADR-0010）
     func _ready() -> void:
         assert(CombatSystem != null, "STARTUP ORDER: CombatSystem must precede CombatForecastService")
     func forecast_combat(monster_hp: int, monster_atk: int, monster_def: int,
                          player_atk: int, player_def: int, player_current_hp: int) -> CombatForecast:
-        # 直接用 Autoload 全局名调用，不加冗余 `as` 转型（godot-specialist E-1）。
-        # 实现约束：CombatForecastService 与 CombatSystem 的 Autoload 注册名必须与各自
-        # class_name 完全一致——否则 `CombatSystem as CombatSystem` 式转型会静默返回 null。
+        # 直接用 Autoload 全局名调用（CombatSystem 亦为无 class_name 的 autoload，全局名访问）。
+        # ⚠️ E-1 订正（2026-07-01，ADR-0010 实证证伪）：原文「Autoload 注册名必须与 class_name
+        # 完全一致，否则 `CombatSystem as CombatSystem` 静默返回 null」是【错误】的——Godot 4.5.2
+        # 中 class_name 与同名 autoload 会报 `Parse Error: Class hides an autoload singleton`，根本
+        # 无法编译到 as。正确做法（ADR-0010）：autoload 脚本不声明 class_name，按干净全局名直接访问、
+        # 不用 `as` 转型。（注：CombatForecastOverlay 是 Scene Node 非 autoload，保留 class_name 供
+        # #6 的 @export var forecast_overlay: CombatForecastOverlay 类型标注——不受本订正影响。）
         return CombatSystem.forecast_combat(
             monster_hp, monster_atk, monster_def, player_atk, player_def, player_current_hp)
 

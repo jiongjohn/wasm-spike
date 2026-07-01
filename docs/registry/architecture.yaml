@@ -186,12 +186,24 @@ api_decisions:
   - purpose: foundation_autoload_readiness_check
     status: active
     api: "is_initialized: bool（只读 getter，_ready() 末尾成功后设 true）+ assert(dep.is_initialized) 守卫（debug）+ GameBootstrap if 守卫（release）"
-    not: "轮询 dep.is_initialized 而不做守卫，或依赖 database_ready 信号进行时序协调"
+    not: "轮询 dep.is_initialized 而不做守卫，或依赖 database_ready 信号进行时序协调；`Dep as Dep` 类型化转型（ADR-0010 订正：autoload 无 class_name，用全局名直接 assert）"
     adr: docs/architecture/adr-0002-autoload-startup-order.md
     reason: "assert 守卫在 debug build 快速失败；GameBootstrap if 守卫在 release build 保留；database_ready 信号在场景节点 _ready() 之前已 emit，不可用于时序协调"
     referenced_by:
       - docs/architecture/adr-0002-autoload-startup-order.md
+      - docs/architecture/adr-0010-autoload-naming-convention.md
     added: 2026-06-25
+    revised: "2026-07-01（ADR-0010：就绪检查改 `assert(Dep != null and Dep.is_initialized)` 全局名，去掉 `Dep as Dep` 转型——同名 class_name/autoload 在 4.5.2 编译错误）"
+
+  - purpose: autoload_naming_convention
+    status: active
+    api: "Autoload 节点脚本【不声明 class_name】（extends Node）；单例按 Project Settings 干净注册名全局访问（EntityDB/TuningConfig/…，与 GDD 一致）；就绪检查 assert(Dep != null and Dep.is_initialized) 无 as 转型；测试用 preload(\"res://…\").new() 实例化。数据/值类（非 autoload）保留 class_name 不受影响。"
+    not: "autoload 脚本声明与注册名同名的 class_name（→ Parse Error: Class hides an autoload singleton，4.5.2 实证）；`Dep as Dep` 转型"
+    adr: docs/architecture/adr-0010-autoload-naming-convention.md
+    reason: "Godot 4.5.2 实证：class_name X 与同名 autoload X 冲突（编译错误）。证伪 ADR-0008 E-1「注册名必须==class_name」。方案①（去 class_name + 全局名访问）与 GDD 干净名一致、Godot 惯用；代价=单例访问失去静态类型（通行取舍）。影响全部 11 个计划 autoload。"
+    referenced_by:
+      - docs/architecture/adr-0010-autoload-naming-convention.md
+    added: 2026-07-01
     revised: ""
 
   - purpose: testing_framework
@@ -326,6 +338,13 @@ forbidden_patterns:
     why: "所有 Autoload 的 _ready()（含 database_ready.emit()）在任意场景节点 _ready() 之前已全部完成；场景节点通过自身 _ready() 连接后，信号早已 emit，连接后永远不会再触发。应使用 is_initialized 标志直接检查，而非信号监听。"
     adr: docs/architecture/adr-0002-autoload-startup-order.md
     added: 2026-06-25
+
+  - pattern: autoload_script_declares_classname
+    status: active
+    description: "注册进 project.godot [autoload] 的脚本不得声明与注册名同名的 class_name（应 `extends Node` 无 class_name）。单例按干净全局名访问。"
+    why: "Godot 4.5.2 实证：class_name X 脚本注册为同名 autoload X → `Parse Error: Class \"X\" hides an autoload singleton`，脚本无法编译、autoload 创建失败。证伪 ADR-0008 E-1。数据/值类（非 autoload）保留 class_name 不受此限。"
+    adr: docs/architecture/adr-0010-autoload-naming-convention.md
+    added: 2026-07-01
 
   - pattern: autoload_holds_scene_node_reference
     status: active

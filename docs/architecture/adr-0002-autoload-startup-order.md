@@ -1,10 +1,29 @@
 # ADR-0002: Autoload 启动顺序与初始化保证
 
 ## Status
-Accepted
+Accepted（autoload 引用模板于 2026-07-01 被 ADR-0010 订正 — 见下方 Revision Note）
 
 ## Date
-2026-06-25
+2026-06-25（Revised 2026-07-01 — autoload 命名/引用约定见 ADR-0010）
+
+## Revision Note (2026-07-01) — autoload 引用模板订正（ADR-0010）
+
+**本 ADR 正文中所有 `var dep := Dep as Dep` 形式的类型化转型守卫（决策细则 3/4、Architecture Diagram、Key Interfaces）已被 ADR-0010 订正，不再适用。**
+
+实证（spike，2026-07-01）：Godot 4.5.2 中 `class_name X` 脚本注册为同名 autoload `X` 报 `Parse Error: Class "X" hides an autoload singleton`，无法编译——`X as X`（X 既是 autoload 名又是 class 名）根本无法运行到转型。故 **ADR-0010 决定：Autoload 脚本不声明 class_name，单例按干净全局名访问，就绪检查用 `assert(Dep != null and Dep.is_initialized, "...")`（无 `as` 转型）。**
+
+正确的 `_ready` 就绪检查模板（替代本 ADR 下文的 `as X` 写法）：
+```gdscript
+func _ready() -> void:
+    assert(TuningConfig != null and TuningConfig.is_initialized,
+        "STARTUP ORDER VIOLATION: TuningConfig must be listed before EntityDB in Project Settings > Autoloads")
+    _load_and_validate()   # 纯同步，禁 await（本 ADR 核心约束不变）
+    _initialized = true
+    database_ready.emit()
+```
+GameBootstrap 守卫同理用全局名 `if TuningConfig == null or not TuningConfig.is_initialized ...`（无 `as`）。
+
+**不变的部分**：Autoload 列表顺序保证、`is_initialized` 标志模式、`database_ready` 信号、`_load_and_validate()` 禁 await、错误屏禁 OS.quit()——这些机制 ADR-0010 未改，仍完全有效。下文 `as X` 代码块保留作历史记录，实现时以本 Revision Note + ADR-0010 为准。
 
 ## Engine Compatibility
 

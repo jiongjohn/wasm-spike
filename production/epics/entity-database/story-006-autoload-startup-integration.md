@@ -7,7 +7,17 @@
 > **Estimate**: L（4h）
 > **Manifest Version**: 2026-06-29
 > **Last Updated**: 2026-07-01
-> **Blocker (2026-07-01)**: Godot 4.5.2 实证——`class_name X` 脚本注册为同名 autoload `X` → `Parse Error: Class "X" hides an autoload singleton`（无法编译；spike 证 TuningConfig/EntityDB 皆栽）。证伪 control-manifest/ADR-0008 E-1「autoload 名必须==class_name」，破坏 ADR-0002 的 `TuningConfig as TuningConfig` 模板 + autoload 注册。**须先 `/architecture-decision` 修订 ADR-0002（autoload 引用/命名）+ 订正 ADR-0008 E-1（选定 autoload 命名约定）再实现本 story。** 详见记忆 godot-autoload-classname-conflict。engine-programmer 已产出可参考的 006 逻辑草稿（逐楼层 D1/D3 校验 + 内联错误屏 + `_tuning_override` DI seam；见本会话 transcript），重做时复用逻辑、按新命名约定调整 `_ready` 的 autoload 引用即可。
+> **Blocker (2026-07-01)**: Godot 4.5.2 实证——`class_name X` 脚本注册为同名 autoload `X` → `Parse Error: Class "X" hides an autoload singleton`。**解决方案已定于 ADR-0010（autoload 命名约定=方案①：autoload 脚本不声明 class_name、按干净全局名访问、就绪检查 `assert(Dep.is_initialized)` 无 as、测试用 preload().new()）**，并已订正 ADR-0002 模板 + ADR-0008 E-1。**ADR-0010 现为 Proposed——本 story 待其经 `/architecture-review`（全新会话）Accepted 后转 Ready 重做。**
+>
+> **重做清单（ADR-0010 Accepted 后）**：
+> 1. `src/tuning_config/tuning_config.gd`、`src/entity/entity_db.gd`：删除 `class_name`（改 `extends Node`）
+> 2. `tests/unit/tuning_config/config_type_and_loader_test.gd`（6 处）、`tests/unit/entity/entity_query_test.gd`（14 处）：`X.new()` → `preload("res://src/.../x.gd").new()`，局部变量去静态类型标注（数据类 class_name 引用、`_inject_*` 动态调用不动）
+> 3. entity_db.gd 补 006 装配：`_ready`（`assert(TuningConfig != null and TuningConfig.is_initialized)` 无 as）+ `_load_and_validate`（**逐怪按 floor_first_appears 取 tuning 行校验**，005 smoke 已验证逻辑 + 反例）+ is_initialized + database_ready + `_show_error_screen`（禁 quit）+ `_tuning_override` DI seam。逻辑草稿见本会话 transcript（engine-programmer 已产出）
+> 4. 注册 project.godot [autoload]：TuningConfig[1] + EntityDB[2]（无 class_name，故不再冲突）
+> 5. 集成测试 `tests/integration/entity/entity_db_startup_test.gd`（AC-01 加载成功 + AC-19 校验失败不进游戏+错误屏，用 DI/场景树夹具）
+> 6. 跑通后确认：`godot --headless --import` 无「hides autoload」；entity 全目录 + tuning 测试改 preload 后仍全绿
+>
+> 详见 ADR-0010、记忆 godot-autoload-classname-conflict。
 
 ## Context
 
