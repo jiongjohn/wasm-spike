@@ -1,12 +1,13 @@
 # Story 006: EntityDB Autoload 装配 + 启动校验集成
 
 > **Epic**: 游戏实体数据库 (EntityDB)
-> **Status**: Ready
+> **Status**: Blocked
 > **Layer**: Foundation
 > **Type**: Integration
 > **Estimate**: L（4h）
 > **Manifest Version**: 2026-06-29
-> **Last Updated**: 2026-06-30
+> **Last Updated**: 2026-07-01
+> **Blocker (2026-07-01)**: Godot 4.5.2 实证——`class_name X` 脚本注册为同名 autoload `X` → `Parse Error: Class "X" hides an autoload singleton`（无法编译；spike 证 TuningConfig/EntityDB 皆栽）。证伪 control-manifest/ADR-0008 E-1「autoload 名必须==class_name」，破坏 ADR-0002 的 `TuningConfig as TuningConfig` 模板 + autoload 注册。**须先 `/architecture-decision` 修订 ADR-0002（autoload 引用/命名）+ 订正 ADR-0008 E-1（选定 autoload 命名约定）再实现本 story。** 详见记忆 godot-autoload-classname-conflict。engine-programmer 已产出可参考的 006 逻辑草稿（逐楼层 D1/D3 校验 + 内联错误屏 + `_tuning_override` DI seam；见本会话 transcript），重做时复用逻辑、按新命名约定调整 `_ready` 的 autoload 引用即可。
 
 ## Context
 

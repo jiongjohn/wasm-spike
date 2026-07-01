@@ -1,7 +1,7 @@
 # Story 005: entities.json MVP 数据文件
 
 > **Epic**: 游戏实体数据库 (EntityDB)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Config/Data
 > **Estimate**: S（1-2h）
@@ -86,3 +86,17 @@
 
 - Depends on: Story 001（schema/from_dict）、Story 002+003（validate_database 跑 smoke）；TuningConfig（已完成，提供 tuning_config.json）
 - Unlocks: Story 006（AC-01 加载成功需真实数据）
+
+---
+
+## Completion Notes
+**Completed**: 2026-07-01
+**Criteria**: 5/5 通过 — data/entities.json 按 GDD Tuning Knobs 权威值（2 怪 + 7 道具 + 2 钥匙，无 Boss/FRAGMENT）；smoke `validate_database` 对真实数据（按出现楼层）is_valid==true。自动化 smoke 7/7 + entity 全目录 123/123 PASSED
+**✅ GDD Open Q1 解决**: MVP 怪物数据在 #3 落地的真实 tuning 曲线下通过 D1/D3——slime@floor1、goblin@floor2 均过，无需调数据/tuning
+**Deviations**:
+- [ADVISORY — 已在册] sprite_id 省略（GDD C3-C5 标非空必填，待美术 Atlas；tech-debt-register 2026-07-01 已记，非新增）
+- [NOTE — VS 复核] goblin@floor2 的 D3 边距仅 1（总伤 30 vs 预算 int(0.35×90)=31）。已在 smoke 以 computed 整数断言固定（偏离即失败）；VS 上调 goblin ATK / 下调 floor2 玩家预期 / 引入第二颗生命宝石时须重跑复核
+- [契约 — 供 006] D1/D3 须按怪的 floor_first_appears 取 tuning 行逐怪校验（反例 goblin@floor1 会 D3 违反，smoke 已固定）；EntityDB._ready() 构造 ValidationConfig 不可全体用同一层
+**Test Evidence**: Config/Data — smoke report `production/qa/smoke-2026-07-01.md` + 自动化 `tests/unit/entity/entities_data_smoke_test.gd`（7 test cases / PASSED；entity 全目录 123/123）
+**Code Review**: N/A（Config/Data — 无程序逻辑，smoke 通过即证据）
+**Files**: data/entities.json + tests/unit/entity/entities_data_smoke_test.gd + production/qa/smoke-2026-07-01.md

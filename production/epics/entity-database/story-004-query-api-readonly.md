@@ -1,7 +1,7 @@
 # Story 004: EntityDB 查询接口 + 只读副本
 
 > **Epic**: 游戏实体数据库 (EntityDB)
-> **Status**: Ready
+> **Status**: Complete
 > **Layer**: Foundation
 > **Type**: Logic
 > **Estimate**: S（2h）
@@ -98,3 +98,13 @@
 
 - Depends on: Story 001（返回 MonsterEntry/ItemEntry/KeyEntry 类型的副本）
 - Unlocks: Story 006（Autoload 加载真实数据后，查询接口对外服务下游 #4/#5/#6/#7/#8）
+
+---
+
+## Completion Notes
+**Completed**: 2026-07-01
+**Criteria**: 4/4 AC 通过（AC-05/06/11/12）；entity 全目录 116/116 PASSED（query18 含三接口对称覆盖：副本隔离/字段正确性/null）
+**Deviations**: 无遗留 — code-review findings 全修：W-02（_inject 加 `if not OS.is_debug_build() push_error+return` 运行时守卫，防 006 集成误调）、W-03/W-05（Item/Key 副本隔离 + get_item 字段正确性对称补测）、W-04（assert_object.is_not_same）。W-01（getter `-> MonsterEntry` 返 null）接受为 GDScript 惯用（与 TuningConfig get_floor_tuning 一致）。`rare_drop_item_id` 空用 ""（与 001 一致）。
+**Test Evidence**: Logic — `tests/unit/entity/entity_query_test.gd`（18 test cases / 0 failures / PASSED，Godot 4.5.2 + GDUnit4；entity 全目录 116/116）
+**Code Review**: Complete（godot-gdscript-specialist，8.5/10 → APPROVE WITH SUGGESTIONS；W-02/03/04/05 全修，重跑 116/116）
+**Files**: src/entity/entity_db.gd（查询接口 + _inject 钩子；Autoload 装配留 006）+ tests/unit/entity/entity_query_test.gd

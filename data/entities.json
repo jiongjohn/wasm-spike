@@ -1,0 +1,20 @@
+{
+  "_comment": "EntityDB 实体数据 — 权威数值来源 GDD entity-database.md Tuning Knobs（MVP 3 层固定，无 Boss、无 FRAGMENT）。enum 用字符串名，键名与 class 字段一致（snake_case），defense 非 def。sprite_id 暂省略（GDD C3-C5 标非空必填，待美术 Atlas 规范定义后补——tech-debt-register 2026-07-01）。floor_first_appears 为内容设计参考（MVP 运行时不消费；供 D1/D3 楼层校验分配）。",
+  "monsters": [
+    { "entity_type": "MONSTER", "id": "slime",  "display_name": "史莱姆", "hp": 20, "atk": 8,  "defense": 2, "gold_drop": 5,  "is_boss": false, "rare_drop_item_id": "", "floor_first_appears": 1 },
+    { "entity_type": "MONSTER", "id": "goblin", "display_name": "哥布林", "hp": 50, "atk": 18, "defense": 5, "gold_drop": 10, "is_boss": false, "rare_drop_item_id": "", "floor_first_appears": 2 }
+  ],
+  "items": [
+    { "entity_type": "ITEM", "id": "potion_small", "display_name": "小回血药", "effect_type": "HP_RESTORE",  "effect_value": 40, "stack_rule": "ADDITIVE" },
+    { "entity_type": "ITEM", "id": "potion_large", "display_name": "大回血药", "effect_type": "HP_RESTORE",  "effect_value": 80, "stack_rule": "ADDITIVE" },
+    { "entity_type": "ITEM", "id": "sword_iron",   "display_name": "铁剑",     "effect_type": "ATK_BOOST",   "effect_value": 8,  "stack_rule": "HIGHEST_WINS" },
+    { "entity_type": "ITEM", "id": "sword_steel",  "display_name": "精钢剑",   "effect_type": "ATK_BOOST",   "effect_value": 14, "stack_rule": "HIGHEST_WINS" },
+    { "entity_type": "ITEM", "id": "shield_wood",  "display_name": "木盾",     "effect_type": "DEF_BOOST",   "effect_value": 5,  "stack_rule": "HIGHEST_WINS" },
+    { "entity_type": "ITEM", "id": "shield_iron",  "display_name": "铁盾",     "effect_type": "DEF_BOOST",   "effect_value": 10, "stack_rule": "HIGHEST_WINS" },
+    { "entity_type": "ITEM", "id": "crystal_life", "display_name": "生命宝石", "effect_type": "MAXHP_BOOST", "effect_value": 50, "stack_rule": "ADDITIVE" }
+  ],
+  "keys": [
+    { "entity_type": "KEY", "id": "key_yellow", "display_name": "黄钥匙", "key_color": "YELLOW", "opens_door_color": "YELLOW" },
+    { "entity_type": "KEY", "id": "key_blue",   "display_name": "蓝钥匙", "key_color": "BLUE",   "opens_door_color": "BLUE" }
+  ]
+}

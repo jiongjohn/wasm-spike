@@ -14,9 +14,11 @@
 | 001 | 数据类型 + JSON 反序列化器 | Logic | ✅ Complete | ADR-0001, ADR-0005 | TR-entity-003, 004 |
 | 002 | validate_database — 数值/公式校验（D1/D3+范围） | Logic | ✅ Complete | ADR-0002, ADR-0005 | TR-entity-001 |
 | 003 | validate_database — schema/引用/唯一性（两遍加载） | Logic | ✅ Complete | ADR-0005, ADR-0002 | TR-entity-001, 003 |
-| 004 | 查询接口 + 只读副本 | Logic | Ready | ADR-0001 | TR-entity-002 |
-| 005 | entities.json MVP 数据文件 | Config/Data | Ready | ADR-0005 | TR-entity-005 |
-| 006 | Autoload 装配 + 启动校验集成 | Integration | Ready | ADR-0002, ADR-0005 | TR-entity-001, 005, 006 |
+| 004 | 查询接口 + 只读副本 | Logic | ✅ Complete | ADR-0001 | TR-entity-002 |
+| 005 | entities.json MVP 数据文件 | Config/Data | ✅ Complete | ADR-0005 | TR-entity-005 |
+| 006 | Autoload 装配 + 启动校验集成 | Integration | ⛔ Blocked | ADR-0002, ADR-0005 | TR-entity-001, 005, 006 |
+
+> **⛔ 006 BLOCKED（2026-07-01，架构）**：Godot 4.5.2 `class_name X` + 同名 autoload `X` → `Parse Error: Class hides an autoload singleton`（实证）。证伪 ADR-0008 E-1，破坏 ADR-0002 autoload 模板。须先 `/architecture-decision` 修订 ADR-0002 + 订正 ADR-0008 E-1 选定 autoload 命名约定（影响全部 11 个计划 autoload），再重做 006。逻辑已由 engine-programmer 草稿（逐楼层校验 + 错误屏 + DI seam）。见记忆 godot-autoload-classname-conflict。
 
 > 实现建议序：001（类型）→ 002（数值校验，建 validate_database 骨架）→ 003（schema 校验，扩展）→ 004（查询）→ 005（数据 + smoke）→ 006（Autoload 集成）。
 > 20 条 GDD AC 全覆盖：001=AC-09；002=AC-02/03/04/07/15/17/20；003=AC-08/10/13/14/16/18；004=AC-05/06/11/12；005=数据 smoke；006=AC-01/19。
